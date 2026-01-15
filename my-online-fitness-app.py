@@ -12,7 +12,7 @@ st.set_page_config(page_title="Fit Tracker AI", page_icon="💪", layout="wide")
 # ==========================================
 # 🛑 CONFIGURAZIONE AI
 # ==========================================
-GEMINI_API_KEY = "INCOLLA_QUI_LA_TUA_CHIAVE"  # <--- RIMETTI LA TUA CHIAVE
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]  # <--- RIMETTI LA TUA CHIAVE
 
 # Configura Gemini se la chiave è presente
 if "INCOLLA_QUI" not in GEMINI_API_KEY:
