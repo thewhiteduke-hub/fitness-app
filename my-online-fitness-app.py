@@ -67,6 +67,21 @@ def delete_riga(idx):
 
 def get_oggi(): return datetime.datetime.now().strftime("%Y-%m-%d")
 
+# Funzione per recuperare l'ultimo link salvato
+def get_foto_obiettivo():
+    df = get_data("diario")
+    if not df.empty:
+        # Cerca righe di tipo 'settings'
+        settings = df[df['tipo'] == 'settings']
+        if not settings.empty:
+            try:
+                # Prende l'ultima inserita
+                last = settings.iloc[-1]
+                d = json.loads(last['dettaglio_json'])
+                return d.get('url_foto', '')
+            except: pass
+    return ''
+
 # ==========================================
 # INTERFACCIA UTENTE
 # ==========================================
@@ -84,7 +99,6 @@ with tab1:
     # ---------------------------------------------------------
     # PARTE 1: KPI (Numeri in alto)
     # ---------------------------------------------------------
-    # Filtro dati di oggi
     df_oggi = df[df['data'] == oggi] if not df.empty else pd.DataFrame()
     
     cal = pro = carb = fat = 0
@@ -100,17 +114,14 @@ with tab1:
     # Trova Ultimo Peso
     ultimo_peso = "--"
     if not df.empty:
-        # Cerchiamo l'ultima riga di tipo 'misure'
         df_misure = df[df['tipo'] == 'misure']
         if not df_misure.empty:
             try:
-                # Prendiamo l'ultimo inserito (assumendo ordine cronologico)
                 last_row = df_misure.iloc[-1]
                 d_mis = json.loads(last_row['dettaglio_json'])
                 ultimo_peso = f"{d_mis['peso']} kg"
             except: pass
 
-    # Mostriamo le metriche
     col_metrics = st.columns(5)
     col_metrics[0].metric("🔥 Kcal Oggi", int(cal))
     col_metrics[1].metric("🥩 Proteine", f"{int(pro)}g")
@@ -142,7 +153,7 @@ with tab1:
             if not found_pasto: st.caption("Nessun pasto ancora.")
         else: st.caption("Nessun dato oggi.")
 
-        st.write("") # Spazio
+        st.write("") 
         st.success("🏋️ **Allenamenti**")
         if not df_oggi.empty:
             found_work = False
@@ -165,7 +176,6 @@ with tab1:
                 if r['tipo'] == 'misure':
                     try:
                         d = json.loads(r['dettaglio_json'])
-                        # Aggiungiamo data e peso
                         misure_list.append({"Data": r['data'], "Peso (kg)": d['peso']})
                     except: pass
             
@@ -179,23 +189,36 @@ with tab1:
     with col_right:
         st.subheader("🏆 Obiettivo")
         with st.container(border=True):
-            st.write("Carica la foto del risultato che vuoi ottenere:")
             
-            # Opzione 1: Upload (Temporaneo per la sessione)
-            uploaded_file = st.file_uploader("Carica Foto", type=['jpg', 'png', 'jpeg'])
-            
-            # Opzione 2: Link (Se uno vuole che rimanga)
-            url_foto = st.text_input("Oppure incolla Link Foto (URL)", placeholder="https://...")
+            # Recupera l'ultimo link salvato nel DB
+            saved_url = get_foto_obiettivo()
 
-            if uploaded_file is not None:
-                st.image(uploaded_file, caption="Il tuo obiettivo", use_container_width=True)
-            elif url_foto:
+            # Se c'è un link salvato, mostriamo la foto
+            if saved_url:
                 try:
-                    st.image(url_foto, caption="Il tuo obiettivo", use_container_width=True)
+                    st.image(saved_url, caption="Obiettivo (Salvato)", use_container_width=True)
                 except:
-                    st.error("Link non valido")
-            else:
-                st.caption("Nessuna foto caricata.")
+                    st.error("Impossibile caricare l'immagine dal link salvato.")
+
+            st.divider()
+            st.write("**Imposta nuova foto:**")
+            
+            # Tab per scegliere tra Upload (temporaneo) e Link (permanente)
+            t_link, t_up = st.tabs(["🔗 Link (Fisso)", "📂 Upload (Temp)"])
+            
+            with t_link:
+                url_foto = st.text_input("Incolla Link Immagine", placeholder="https://...")
+                if st.button("💾 Salva Link per Sempre"):
+                    if url_foto:
+                        add_riga_diario("settings", {"url_foto": url_foto})
+                        st.success("Foto salvata nel Database!")
+                        st.rerun()
+            
+            with t_up:
+                uploaded_file = st.file_uploader("Carica File", type=['jpg', 'png', 'jpeg'])
+                if uploaded_file is not None:
+                    st.image(uploaded_file, caption="Preview Temporanea", use_container_width=True)
+                    st.caption("⚠️ Nota: Le foto caricate da file spariscono se ricarichi la pagina. Usa il Link per salvarle per sempre.")
 
 # --- CIBO ---
 with tab2:
@@ -240,7 +263,6 @@ with tab2:
                     save_data("cibi", pd.concat([df_cibi, new], ignore_index=True))
                     st.success("Salvato!"); st.rerun()
     
-    # Lista Pasti con Elimina
     st.divider()
     st.subheader("Riepilogo Pasti Oggi")
     df = get_data("diario")
