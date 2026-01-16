@@ -124,42 +124,74 @@ with tab2:
     lista_cibi = df_cibi['nome'].tolist() if not df_cibi.empty else []
 
     with c_in:
-        with st.form("add_food"):
-            pasto = st.selectbox("Pasto", ["Colazione", "Pranzo", "Cena", "Spuntino"])
-            
-            # Selezione da DB o manuale
-            scelta_db = st.selectbox("Cerca nel DB (o lascia vuoto)", [""] + lista_cibi)
-            
-            # Valori di default se scelgo da DB
-            def_n=""; def_k=0.0; def_p=0.0; def_c=0.0; def_f=0.0
-            if scelta_db:
-                riga = df_cibi[df_cibi['nome'] == scelta_db].iloc[0]
-                def_n = riga['nome']; def_k = riga['kcal']; def_p = riga['pro']; def_c = riga['carb']; def_f = riga['fat']
+        st.subheader("Calcolatore & Diario")
+        
+        # 1. SELEZIONE E INPUT GRAMMI (Fuori dal form per aggiornare in tempo reale)
+        pasto = st.selectbox("Pasto", ["Colazione", "Pranzo", "Cena", "Spuntino"])
+        scelta_db = st.selectbox("🔍 Cerca nel DB (100g)", ["-- Manuale --"] + lista_cibi)
+        grammi = st.number_input("⚖️ Grammi consumati", min_value=1.0, value=100.0, step=10.0)
 
-            nome = st.text_input("Nome", value=def_n)
-            k = st.number_input("Kcal", value=float(def_k))
-            p = st.number_input("Pro", value=float(def_p))
-            c = st.number_input("Carb", value=float(def_c))
-            f = st.number_input("Fat", value=float(def_f))
+        # 2. LOGICA DI CALCOLO (Valori iniziali)
+        # Valori di default (manuali)
+        calc_nome = ""
+        calc_k = 0.0
+        calc_p = 0.0
+        calc_c = 0.0
+        calc_f = 0.0
+
+        # Se abbiamo selezionato un cibo, ricalcoliamo i valori in base ai grammi
+        if scelta_db != "-- Manuale --" and not df_cibi.empty:
+            # Trova la riga nel DB
+            riga = df_cibi[df_cibi['nome'] == scelta_db].iloc[0]
             
-            if st.form_submit_button("Mangia!"):
-                dati_pasto = {"pasto": pasto, "nome": nome, "cal": k, "pro": p, "carb": c, "fat": f}
+            # Calcolo proporzione: (Valore100g * GrammiMangiati) / 100
+            factor = grammi / 100.0
+            
+            calc_nome = riga['nome']
+            calc_k = float(riga['kcal']) * factor
+            calc_p = float(riga['pro']) * factor
+            calc_c = float(riga['carb']) * factor
+            calc_f = float(riga['fat']) * factor
+
+        # 3. FORM DI INVIO (Con i valori calcolati pre-compilati)
+        with st.form("add_food"):
+            st.caption(f"Valori calcolati per {grammi}g di prodotto")
+            
+            # Usiamo 'value' per pre-compilare. 
+            # Nota: Streamlit aggiornerà questi campi quando 'scelta_db' o 'grammi' cambiano.
+            nome = st.text_input("Nome", value=calc_nome)
+            
+            col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+            k = col_m1.number_input("Kcal", value=calc_k, step=1.0)
+            p = col_m2.number_input("Pro", value=calc_p, step=0.1)
+            c = col_m3.number_input("Carb", value=calc_c, step=0.1)
+            f = col_m4.number_input("Fat", value=calc_f, step=0.1)
+            
+            if st.form_submit_button("🍽️ Aggiungi al Diario"):
+                dati_pasto = {"pasto": pasto, "nome": nome, "cal": k, "pro": p, "carb": c, "fat": f, "grammi": grammi}
                 save_riga_diario(get_oggi(), "pasto", dati_pasto)
-                st.success("Salvato su Google Sheets!")
+                st.success(f"Aggiunto: {nome} ({k:.0f} kcal)")
                 st.rerun()
 
     with c_db:
-        st.subheader("Aggiungi Nuovo al DB")
+        st.subheader("💾 Aggiungi al Database (su 100g)")
+        st.info("Qui inserisci i valori nutrizionali per **100g** di prodotto (come leggi sull'etichetta).")
+        
         with st.form("new_db_food"):
             n_n = st.text_input("Nome Nuovo Cibo")
-            n_k = st.number_input("Kcal")
-            n_p = st.number_input("Pro")
-            n_c = st.number_input("Carb")
-            n_f = st.number_input("Fat")
+            c1, c2 = st.columns(2)
+            n_k = c1.number_input("Kcal (per 100g)", step=1.0)
+            n_p = c2.number_input("Pro (per 100g)", step=0.1)
+            n_c = c1.number_input("Carb (per 100g)", step=0.1)
+            n_f = c2.number_input("Fat (per 100g)", step=0.1)
+            
             if st.form_submit_button("Salva nel DB"):
-                save_nuovo_cibo(n_n, n_k, n_p, n_c, n_f)
-                st.success("Cibo aggiunto al database!")
-                st.rerun()
+                if n_n:
+                    save_nuovo_cibo(n_n, n_k, n_p, n_c, n_f)
+                    st.success(f"{n_n} aggiunto al database!")
+                    st.rerun()
+                else:
+                    st.error("Inserisci un nome.")
 
 # --- TAB ALLENAMENTO ---
 with tab3:
