@@ -31,9 +31,11 @@ if not check_password(): st.stop()
 
 # AI CONFIG
 try:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.5-flash')
-    gemini_ok = True
+    if "GEMINI_API_KEY" in st.secrets:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        gemini_ok = True
+    else: gemini_ok = False
 except: gemini_ok = False
 
 # ==========================================
@@ -61,6 +63,7 @@ def add_riga_diario(tipo, dati):
 
 def delete_riga(idx):
     df = get_data("diario")
+    # Elimina la riga e ricarica
     save_data("diario", df.drop(idx))
 
 def get_oggi(): return datetime.datetime.now().strftime("%Y-%m-%d")
@@ -98,7 +101,6 @@ with tab1:
     col4.metric("Fat", f"{int(fat)}g")
 
     st.divider()
-
     # 2. Grafico Peso
     st.subheader("📉 Andamento Peso")
     if not df.empty:
@@ -113,34 +115,6 @@ with tab1:
         if misure_list:
             chart_data = pd.DataFrame(misure_list).set_index("data")
             st.line_chart(chart_data)
-        else:
-            st.info("Nessuna misura registrata ancora.")
-
-    st.divider()
-
-    # 3. Diario Odierno (con tasto elimina)
-    c1, c2 = st.columns(2)
-    with c1:
-        st.subheader("🍎 Pasti Oggi")
-        if not df_oggi.empty:
-            for idx, r in df_oggi.iterrows():
-                if r['tipo'] == 'pasto':
-                    d = json.loads(r['dettaglio_json'])
-                    cc1, cc2 = st.columns([4,1])
-                    cc1.text(f"🍽️ {d['nome']} ({int(d['cal'])} kcal)")
-                    if cc2.button("🗑️", key=f"d_p_{idx}"): delete_riga(idx); st.rerun()
-
-    with c2:
-        st.subheader("🏋️ Workout Oggi")
-        if not df_oggi.empty:
-            for idx, r in df_oggi.iterrows():
-                if r['tipo'] == 'allenamento':
-                    d = json.loads(r['dettaglio_json'])
-                    cc1, cc2 = st.columns([4,1])
-                    with cc1:
-                        st.info(f"⏱️ {d.get('durata',0)} min")
-                        for ex in d['esercizi']: st.caption(f"• {ex['nome']}: {ex['serie']}x{ex['reps']} {ex['kg']}kg")
-                    if cc2.button("🗑️", key=f"d_w_{idx}"): delete_riga(idx); st.rerun()
 
 # --- CIBO ---
 with tab2:
@@ -151,10 +125,12 @@ with tab2:
     nomi_cibi = df_cibi['nome'].tolist() if not df_cibi.empty else []
 
     with c_in:
-        st.subheader("Mangia")
+        st.subheader("🍽️ Mangia")
         pasto = st.selectbox("Momento", ["Colazione", "Pranzo", "Cena", "Spuntino"])
         sel_cibo = st.selectbox("Cerca Cibo", ["-- Manuale --"] + nomi_cibi)
-        gr = st.number_input("Grammi", 100.0, step=10.0)
+        
+        # CORREZIONE 1: min_value=1.0 permette di inserire anche 1 grammo
+        gr = st.number_input("Grammi Consumati", min_value=1.0, value=100.0, step=10.0)
 
         # Autocompilazione
         v_n, v_k, v_p, v_c, v_f = "", 0.0, 0.0, 0.0, 0.0
@@ -164,18 +140,18 @@ with tab2:
             v_n=row['nome']; v_k=row['kcal']*f; v_p=row['pro']*f; v_c=row['carb']*f; v_f=row['fat']*f
 
         with st.form("f_pasto"):
-            st.caption(f"Valori per {gr}g")
+            st.caption(f"Valori calcolati per {gr}g")
             nome = st.text_input("Nome", v_n)
             k = st.number_input("Kcal", value=float(v_k))
             p = st.number_input("Pro", value=float(v_p))
             c = st.number_input("Carb", value=float(v_c))
             fat = st.number_input("Fat", value=float(v_f))
-            if st.form_submit_button("Aggiungi"):
+            if st.form_submit_button("Aggiungi al Diario"):
                 add_riga_diario("pasto", {"pasto":pasto, "nome":nome, "cal":k, "pro":p, "carb":c, "fat":fat, "gr":gr})
-                st.success("Fatto!"); st.rerun()
+                st.success("Aggiunto!"); st.rerun()
 
     with c_db:
-        st.subheader("Nuovo Cibo nel DB (100g)")
+        st.subheader("💾 Nuovo Cibo DB (100g)")
         with st.form("f_new_cibo"):
             nn = st.text_input("Nome")
             kk = st.number_input("Kcal"); pp = st.number_input("Pro"); cc = st.number_input("Carb"); ff = st.number_input("Fat")
@@ -185,66 +161,66 @@ with tab2:
                     save_data("cibi", pd.concat([df_cibi, new], ignore_index=True))
                     st.success("Salvato!"); st.rerun()
 
+    # CORREZIONE 2: LISTA CON TASTO ELIMINA DIRETTAMENTE QUI
+    st.divider()
+    st.subheader("📋 I tuoi pasti di oggi")
+    df = get_data("diario")
+    df_oggi = df[df['data'] == get_oggi()] if not df.empty else pd.DataFrame()
+    
+    if not df_oggi.empty:
+        for idx, r in df_oggi.iterrows():
+            if r['tipo'] == 'pasto':
+                try:
+                    d = json.loads(r['dettaglio_json'])
+                    cc1, cc2, cc3 = st.columns([1, 4, 1])
+                    cc1.write(f"**{d['pasto']}**")
+                    cc2.write(f"{d['nome']} ({int(d.get('gr',0))}g) - {int(d['cal'])} kcal")
+                    # Tasto Elimina Rosso
+                    if cc3.button("🗑️", key=f"del_food_{idx}"):
+                        delete_riga(idx)
+                        st.toast("Cancellato!")
+                        st.rerun()
+                except: pass
+    else:
+        st.info("Nessun pasto registrato oggi.")
+
 # --- WORKOUT ---
 with tab3:
     st.header("🏋️ Registro Allenamenti")
-    
-    # Inizializza la lista temporanea della sessione
     if 'sess_w' not in st.session_state: st.session_state['sess_w'] = []
     
-    # 1. SETUP SESSIONE (Nome della scheda/sessione)
     col_setup, col_list = st.columns([1, 2])
     with col_setup:
         st.subheader("Impostazioni")
-        # Qui puoi scrivere "Scheda A", "Scheda B", "Cardio", ecc.
         nome_sessione = st.text_input("Nome Sessione", value="Workout", placeholder="es. Scheda A, Cardio...")
-        
         st.markdown("---")
-        st.write("#### Aggiungi Esercizio")
-        
-        # Scelta Tipo: Pesi o Cardio
         tipo_ex = st.radio("Tipo Attività", ["🏋️ Pesi", "🏃 Cardio"], horizontal=True)
-        
-        # Carica lista esercizi dal DB (solo per Pesi ha senso cercare i nomi)
         df_ex = get_data("esercizi")
         lista_ex = df_ex['nome'].tolist() if not df_ex.empty else []
 
         if tipo_ex == "🏋️ Pesi":
-            # Input per PESI
             ex_sel = st.selectbox("Esercizio", ["-- Nuovo/Manuale --"] + lista_ex)
             nome_ex = ex_sel if ex_sel != "-- Nuovo/Manuale --" else st.text_input("Nome (es. Panca)")
-            
             c1, c2, c3 = st.columns(3)
             serie = c1.number_input("Serie", 1, step=1)
             reps = c2.number_input("Reps", 1, step=1)
             kg = c3.number_input("Kg", 0.0, step=0.5)
-            
             if st.button("➕ Aggiungi Pesi", type="primary"):
                 if nome_ex:
-                    st.session_state['sess_w'].append({
-                        "type": "pesi", "nome": nome_ex, 
-                        "serie": serie, "reps": reps, "kg": kg
-                    })
+                    st.session_state['sess_w'].append({"type": "pesi", "nome": nome_ex, "serie": serie, "reps": reps, "kg": kg})
                 else: st.error("Inserisci il nome!")
-                
         else:
-            # Input per CARDIO
-            nome_cardio = st.text_input("Attività (es. Corsa, Bici)", "Corsa")
+            nome_cardio = st.text_input("Attività (es. Corsa)", "Corsa")
             c1, c2, c3 = st.columns(3)
             km = c1.number_input("Km", 0.0, step=0.1)
             tempo = c2.number_input("Minuti", 0, step=1)
             kcal_burn = c3.number_input("Kcal", 0, step=10)
-            
             if st.button("➕ Aggiungi Cardio", type="primary"):
                 if nome_cardio:
-                    st.session_state['sess_w'].append({
-                        "type": "cardio", "nome": nome_cardio, 
-                        "km": km, "tempo": tempo, "kcal": kcal_burn
-                    })
+                    st.session_state['sess_w'].append({"type": "cardio", "nome": nome_cardio, "km": km, "tempo": tempo, "kcal": kcal_burn})
         
-        # Sezione per Salvare nuovi esercizi nel DB (solo nomi)
         st.markdown("---")
-        with st.expander("📝 Crea nuovo Esercizio (DB)"):
+        with st.expander("📝 Crea Esercizio (DB)"):
             with st.form("new_ex_db"):
                 new_n = st.text_input("Nome Esercizio")
                 if st.form_submit_button("Salva in DB"):
@@ -252,52 +228,36 @@ with tab3:
                         save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":new_n}])], ignore_index=True))
                         st.success("Creato!"); st.rerun()
 
-    # 2. LISTA SESSIONE CORRENTE
     with col_list:
-        st.subheader(f"Riepilogo: {nome_sessione}")
-        
+        st.subheader(f"Sessione: {nome_sessione}")
         if st.session_state['sess_w']:
-            # Tabella riepilogativa carina
             for i, item in enumerate(st.session_state['sess_w']):
                 with st.container(border=True):
                     cols = st.columns([1, 4, 1])
-                    
-                    # Icona
                     cols[0].title("🏋️" if item['type']=="pesi" else "🏃")
-                    
-                    # Dettagli
                     with cols[1]:
                         st.write(f"**{item['nome']}**")
-                        if item['type'] == "pesi":
-                            st.caption(f"{item['serie']} serie x {item['reps']} reps @ {item['kg']} kg")
-                        else:
-                            st.caption(f"{item['km']} km in {item['tempo']} min ({item['kcal']} kcal)")
-                    
-                    # Tasto Rimuovi
-                    if cols[2].button("🗑️", key=f"del_sess_{i}"):
-                        st.session_state['sess_w'].pop(i)
-                        st.rerun()
+                        if item['type'] == "pesi": st.caption(f"{item['serie']} x {item['reps']} @ {item['kg']} kg")
+                        else: st.caption(f"{item['km']} km in {item['tempo']} min ({item['kcal']} kcal)")
+                    if cols[2].button("❌", key=f"del_sess_{i}"): st.session_state['sess_w'].pop(i); st.rerun()
 
-            st.divider()
-            # Salvataggio Finale
-            durata_tot = st.number_input("Durata Totale Sessione (min)", 0, step=5)
-            
-            if st.button("💾 SALVA SESSIONE NEL DIARIO", type="primary", use_container_width=True):
-                # Salviamo tutto nel diario
-                dati_sessione = {
-                    "nome_sessione": nome_sessione, # "Scheda A", "Cardio", ecc.
-                    "durata": durata_tot,
-                    "esercizi": st.session_state['sess_w']
-                }
-                add_riga_diario("allenamento", dati_sessione)
-                
-                # Reset
-                st.session_state['sess_w'] = []
-                st.balloons()
-                st.success(f"Sessione '{nome_sessione}' salvata!")
-                st.rerun()
-        else:
-            st.info("La sessione è vuota. Aggiungi esercizi o cardio dalla colonna a sinistra.")
+            durata_tot = st.number_input("Durata Totale (min)", 0, step=5)
+            if st.button("💾 SALVA SESSIONE", type="primary", use_container_width=True):
+                add_riga_diario("allenamento", {"nome_sessione": nome_sessione, "durata": durata_tot, "esercizi": st.session_state['sess_w']})
+                st.session_state['sess_w'] = []; st.success("Salvato!"); st.rerun()
+    
+    # Lista Allenamenti Oggi con Tasto Elimina
+    st.divider()
+    st.subheader("📋 Allenamenti completati oggi")
+    df = get_data("diario")
+    df_oggi = df[df['data'] == get_oggi()] if not df.empty else pd.DataFrame()
+    if not df_oggi.empty:
+        for idx, r in df_oggi.iterrows():
+            if r['tipo'] == 'allenamento':
+                d = json.loads(r['dettaglio_json'])
+                c1, c2 = st.columns([5,1])
+                c1.info(f"✅ {d.get('nome_sessione','Workout')} ({d['durata']} min)")
+                if c2.button("🗑️", key=f"del_stored_w_{idx}"): delete_riga(idx); st.rerun()
 
 # --- MISURE ---
 with tab4:
@@ -306,32 +266,26 @@ with tab4:
         col1, col2 = st.columns(2)
         peso = col1.number_input("Peso Corporeo (kg)", 0.0, step=0.1, format="%.1f")
         alt = col2.number_input("Altezza (cm)", 0, step=1)
-        
         c1, c2, c3 = st.columns(3)
         collo = c1.number_input("Collo (cm)", 0.0, step=0.5)
         vita = c2.number_input("Vita (cm)", 0.0, step=0.5)
         fianchi = c3.number_input("Fianchi (cm)", 0.0, step=0.5)
-        
         if st.form_submit_button("Salva Misure"):
             add_riga_diario("misure", {"peso":peso, "alt":alt, "collo":collo, "vita":vita, "fianchi":fianchi})
-            st.success("Misure aggiornate!"); st.rerun()
+            st.success("Aggiornato!"); st.rerun()
 
 # --- AI ---
 with tab5:
     st.header("🤖 Coach")
     if "chat" not in st.session_state: st.session_state.chat = []
-    
     for m in st.session_state.chat:
         with st.chat_message(m["role"]): st.markdown(m["txt"])
-        
     if p := st.chat_input("Chiedi..."):
         st.session_state.chat.append({"role":"user", "txt":p})
         with st.chat_message("user"): st.markdown(p)
-        
         resp = "Errore AI"
         if gemini_ok:
             try: resp = model.generate_content(f"Sei un PT. Rispondi a: {p}").text
             except Exception as e: resp = str(e)
-            
         st.session_state.chat.append({"role":"assistant", "txt":resp})
         with st.chat_message("assistant"): st.markdown(resp)
