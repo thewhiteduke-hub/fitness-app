@@ -11,6 +11,38 @@ import google.generativeai as genai
 st.set_page_config(page_title="Fit Tracker Cloud", page_icon="☁️", layout="wide")
 
 # ==========================================
+# 🔒 SISTEMA DI LOGIN (PROTEZIONE)
+# ==========================================
+def check_password():
+    """Ritorna True se l'utente ha inserito la password corretta."""
+    if "password_correct" not in st.session_state:
+        st.session_state["password_correct"] = False
+
+    if st.session_state["password_correct"]:
+        return True
+
+    st.text_input(
+        "🔒 Inserisci la Password per accedere", 
+        type="password", 
+        on_change=password_entered, 
+        key="password_input"
+    )
+    return False
+
+def password_entered():
+    """Controlla se la password inserita corrisponde a quella nei Secrets."""
+    if st.session_state["password_input"] == st.secrets["APP_PASSWORD"]:
+        st.session_state["password_correct"] = True
+        del st.session_state["password_input"]  # Pulisce il campo per sicurezza
+    else:
+        st.session_state["password_correct"] = False
+        st.error("😕 Password errata")
+
+# BLOCCO DELL'APP: Se la password non è corretta, l'app si ferma qui.
+if not check_password():
+    st.stop()
+
+# ==========================================
 # 🛑 CONFIGURAZIONE AI
 # ==========================================
 try:
