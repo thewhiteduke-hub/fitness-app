@@ -187,63 +187,117 @@ with tab2:
 
 # --- WORKOUT ---
 with tab3:
-    st.header("Scheda Allenamento")
+    st.header("🏋️ Registro Allenamenti")
     
-    # Sessione Temporanea
+    # Inizializza la lista temporanea della sessione
     if 'sess_w' not in st.session_state: st.session_state['sess_w'] = []
     
-    col_run, col_db = st.columns([2,1])
-    
-    df_ex = get_data("esercizi")
-    lista_ex = df_ex['nome'].tolist() if not df_ex.empty else []
-
-    with col_run:
-        st.subheader("🔥 Sessione in corso")
+    # 1. SETUP SESSIONE (Nome della scheda/sessione)
+    col_setup, col_list = st.columns([1, 2])
+    with col_setup:
+        st.subheader("Impostazioni")
+        # Qui puoi scrivere "Scheda A", "Scheda B", "Cardio", ecc.
+        nome_sessione = st.text_input("Nome Sessione", value="Workout", placeholder="es. Scheda A, Cardio...")
         
-        # Selezione Esercizio
-        c1, c2, c3, c4 = st.columns([3, 1, 1, 1])
-        ex_sel = c1.selectbox("Seleziona Esercizio", ["-- Nuovo --"] + lista_ex)
-        
-        # Se seleziona "-- Nuovo --", appare una casella di testo, altrimenti usa il nome selezionato
-        nome_ex_finale = ex_sel if ex_sel != "-- Nuovo --" else c1.text_input("Scrivi nome esercizio")
-        
-        serie = c2.number_input("Serie", 1, step=1)
-        reps = c3.number_input("Reps", 1, step=1)
-        kg = c4.number_input("Kg", 0.0, step=0.5)
-        
-        if st.button("➕ Aggiungi alla scheda", type="primary"):
-            if nome_ex_finale:
-                st.session_state['sess_w'].append({"nome": nome_ex_finale, "serie": serie, "reps": reps, "kg": kg})
-            else:
-                st.error("Scegli o scrivi un nome!")
-
         st.markdown("---")
-        # Lista Esercizi Aggiunti
-        if st.session_state['sess_w']:
-            for i, e in enumerate(st.session_state['sess_w']):
-                sc1, sc2 = st.columns([5,1])
-                sc1.info(f"**{i+1}. {e['nome']}** | {e['serie']} x {e['reps']} @ {e['kg']}kg")
-                if sc2.button("❌", key=f"rem_w_{i}"):
-                    st.session_state['sess_w'].pop(i); st.rerun()
-            
-            durata = st.number_input("Durata Totale (minuti)", 0, step=5)
-            if st.button("💾 SALVA SESSIONE COMPLETA"):
-                add_riga_diario("allenamento", {"durata":durata, "esercizi":st.session_state['sess_w']})
-                st.session_state['sess_w'] = []
-                st.success("Workout salvato!"); st.rerun()
-        else:
-            st.caption("Aggiungi esercizi per iniziare...")
+        st.write("#### Aggiungi Esercizio")
+        
+        # Scelta Tipo: Pesi o Cardio
+        tipo_ex = st.radio("Tipo Attività", ["🏋️ Pesi", "🏃 Cardio"], horizontal=True)
+        
+        # Carica lista esercizi dal DB (solo per Pesi ha senso cercare i nomi)
+        df_ex = get_data("esercizi")
+        lista_ex = df_ex['nome'].tolist() if not df_ex.empty else []
 
-    with col_db:
-        st.subheader("📝 Crea Esercizio")
-        st.info("Aggiungi qui i tuoi esercizi preferiti per ritrovarli nel menu a tendina.")
-        with st.form("new_ex"):
-            n_ex = st.text_input("Nome Esercizio (es. Panca)")
-            if st.form_submit_button("Salva nel DB"):
-                if n_ex:
-                    new = pd.DataFrame([{"nome":n_ex}])
-                    save_data("esercizi", pd.concat([df_ex, new], ignore_index=True))
-                    st.success("Creato!"); st.rerun()
+        if tipo_ex == "🏋️ Pesi":
+            # Input per PESI
+            ex_sel = st.selectbox("Esercizio", ["-- Nuovo/Manuale --"] + lista_ex)
+            nome_ex = ex_sel if ex_sel != "-- Nuovo/Manuale --" else st.text_input("Nome (es. Panca)")
+            
+            c1, c2, c3 = st.columns(3)
+            serie = c1.number_input("Serie", 1, step=1)
+            reps = c2.number_input("Reps", 1, step=1)
+            kg = c3.number_input("Kg", 0.0, step=0.5)
+            
+            if st.button("➕ Aggiungi Pesi", type="primary"):
+                if nome_ex:
+                    st.session_state['sess_w'].append({
+                        "type": "pesi", "nome": nome_ex, 
+                        "serie": serie, "reps": reps, "kg": kg
+                    })
+                else: st.error("Inserisci il nome!")
+                
+        else:
+            # Input per CARDIO
+            nome_cardio = st.text_input("Attività (es. Corsa, Bici)", "Corsa")
+            c1, c2, c3 = st.columns(3)
+            km = c1.number_input("Km", 0.0, step=0.1)
+            tempo = c2.number_input("Minuti", 0, step=1)
+            kcal_burn = c3.number_input("Kcal", 0, step=10)
+            
+            if st.button("➕ Aggiungi Cardio", type="primary"):
+                if nome_cardio:
+                    st.session_state['sess_w'].append({
+                        "type": "cardio", "nome": nome_cardio, 
+                        "km": km, "tempo": tempo, "kcal": kcal_burn
+                    })
+        
+        # Sezione per Salvare nuovi esercizi nel DB (solo nomi)
+        st.markdown("---")
+        with st.expander("📝 Crea nuovo Esercizio (DB)"):
+            with st.form("new_ex_db"):
+                new_n = st.text_input("Nome Esercizio")
+                if st.form_submit_button("Salva in DB"):
+                    if new_n:
+                        save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":new_n}])], ignore_index=True))
+                        st.success("Creato!"); st.rerun()
+
+    # 2. LISTA SESSIONE CORRENTE
+    with col_list:
+        st.subheader(f"Riepilogo: {nome_sessione}")
+        
+        if st.session_state['sess_w']:
+            # Tabella riepilogativa carina
+            for i, item in enumerate(st.session_state['sess_w']):
+                with st.container(border=True):
+                    cols = st.columns([1, 4, 1])
+                    
+                    # Icona
+                    cols[0].title("🏋️" if item['type']=="pesi" else "🏃")
+                    
+                    # Dettagli
+                    with cols[1]:
+                        st.write(f"**{item['nome']}**")
+                        if item['type'] == "pesi":
+                            st.caption(f"{item['serie']} serie x {item['reps']} reps @ {item['kg']} kg")
+                        else:
+                            st.caption(f"{item['km']} km in {item['tempo']} min ({item['kcal']} kcal)")
+                    
+                    # Tasto Rimuovi
+                    if cols[2].button("🗑️", key=f"del_sess_{i}"):
+                        st.session_state['sess_w'].pop(i)
+                        st.rerun()
+
+            st.divider()
+            # Salvataggio Finale
+            durata_tot = st.number_input("Durata Totale Sessione (min)", 0, step=5)
+            
+            if st.button("💾 SALVA SESSIONE NEL DIARIO", type="primary", use_container_width=True):
+                # Salviamo tutto nel diario
+                dati_sessione = {
+                    "nome_sessione": nome_sessione, # "Scheda A", "Cardio", ecc.
+                    "durata": durata_tot,
+                    "esercizi": st.session_state['sess_w']
+                }
+                add_riga_diario("allenamento", dati_sessione)
+                
+                # Reset
+                st.session_state['sess_w'] = []
+                st.balloons()
+                st.success(f"Sessione '{nome_sessione}' salvata!")
+                st.rerun()
+        else:
+            st.info("La sessione è vuota. Aggiungi esercizi o cardio dalla colonna a sinistra.")
 
 # --- MISURE ---
 with tab4:
