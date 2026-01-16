@@ -30,16 +30,16 @@ st.set_page_config(page_title="Fit Tracker Pro", page_icon="💪", layout="wide"
 if not check_password(): st.stop()
 
 # AI CONFIG
+gemini_ok = False
 try:
     if "GEMINI_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-2.5-flash')
         gemini_ok = True
-    else: gemini_ok = False
-except: gemini_ok = False
+except: pass
 
 # ==========================================
-# 🔗 DATABASE
+# 🔗 DATABASE E FUNZIONI UTILI
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
@@ -63,58 +63,139 @@ def add_riga_diario(tipo, dati):
 
 def delete_riga(idx):
     df = get_data("diario")
-    # Elimina la riga e ricarica
     save_data("diario", df.drop(idx))
 
 def get_oggi(): return datetime.datetime.now().strftime("%Y-%m-%d")
 
 # ==========================================
-# UI & TAB
+# INTERFACCIA UTENTE
 # ==========================================
 st.title("💪 Fit Tracker AI")
-st.caption(f"📅 Data: {get_oggi()}")
 
+# Menu principale
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Cibo", "🏋️ Workout", "📏 Misure", "🤖 AI"])
 
 # --- DASHBOARD ---
 with tab1:
-    st.header("Il tuo andamento")
+    # Scarichiamo tutti i dati una volta sola
     df = get_data("diario")
     oggi = get_oggi()
     
-    # 1. Calcolo Calorie Oggi
-    cal = pro = carb = fat = 0
+    # ---------------------------------------------------------
+    # PARTE 1: KPI (Numeri in alto)
+    # ---------------------------------------------------------
+    # Filtro dati di oggi
     df_oggi = df[df['data'] == oggi] if not df.empty else pd.DataFrame()
+    
+    cal = pro = carb = fat = 0
     
     if not df_oggi.empty:
         for _, r in df_oggi.iterrows():
-            try:
-                d = json.loads(r['dettaglio_json'])
-                if r['tipo'] == 'pasto':
-                    cal+=d['cal']; pro+=d['pro']; carb+=d['carb']; fat+=d['fat']
-            except: pass
-
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Kcal", int(cal), delta_color="normal")
-    col2.metric("Pro", f"{int(pro)}g")
-    col3.metric("Carb", f"{int(carb)}g")
-    col4.metric("Fat", f"{int(fat)}g")
-
-    st.divider()
-    # 2. Grafico Peso
-    st.subheader("📉 Andamento Peso")
-    if not df.empty:
-        misure_list = []
-        for _, r in df.iterrows():
-            if r['tipo'] == 'misure':
+            if r['tipo'] == 'pasto':
                 try:
                     d = json.loads(r['dettaglio_json'])
-                    misure_list.append({"data": r['data'], "peso": d['peso']})
+                    cal+=d['cal']; pro+=d['pro']; carb+=d['carb']; fat+=d['fat']
                 except: pass
+
+    # Trova Ultimo Peso
+    ultimo_peso = "--"
+    if not df.empty:
+        # Cerchiamo l'ultima riga di tipo 'misure'
+        df_misure = df[df['tipo'] == 'misure']
+        if not df_misure.empty:
+            try:
+                # Prendiamo l'ultimo inserito (assumendo ordine cronologico)
+                last_row = df_misure.iloc[-1]
+                d_mis = json.loads(last_row['dettaglio_json'])
+                ultimo_peso = f"{d_mis['peso']} kg"
+            except: pass
+
+    # Mostriamo le metriche
+    col_metrics = st.columns(5)
+    col_metrics[0].metric("🔥 Kcal Oggi", int(cal))
+    col_metrics[1].metric("🥩 Proteine", f"{int(pro)}g")
+    col_metrics[2].metric("🍚 Carbo", f"{int(carb)}g")
+    col_metrics[3].metric("🥑 Grassi", f"{int(fat)}g")
+    col_metrics[4].metric("⚖️ Peso Attuale", ultimo_peso, delta_color="off")
+
+    st.markdown("---")
+
+    # ---------------------------------------------------------
+    # PARTE 2: COLONNE PRINCIPALI
+    # ---------------------------------------------------------
+    col_left, col_center, col_right = st.columns([1.5, 1.5, 1])
+
+    # COLONNA SINISTRA: Alimentazione & Allenamenti
+    with col_left:
+        st.subheader("📅 Oggi")
         
-        if misure_list:
-            chart_data = pd.DataFrame(misure_list).set_index("data")
-            st.line_chart(chart_data)
+        st.info("🍎 **Pasti Consumati**")
+        if not df_oggi.empty:
+            found_pasto = False
+            for idx, r in df_oggi.iterrows():
+                if r['tipo'] == 'pasto':
+                    found_pasto = True
+                    d = json.loads(r['dettaglio_json'])
+                    c1, c2 = st.columns([4,1])
+                    c1.write(f"- {d['nome']} ({int(d.get('gr',0))}g) | {int(d['cal'])} kcal")
+                    if c2.button("🗑️", key=f"d_dash_p_{idx}"): delete_riga(idx); st.rerun()
+            if not found_pasto: st.caption("Nessun pasto ancora.")
+        else: st.caption("Nessun dato oggi.")
+
+        st.write("") # Spazio
+        st.success("🏋️ **Allenamenti**")
+        if not df_oggi.empty:
+            found_work = False
+            for idx, r in df_oggi.iterrows():
+                if r['tipo'] == 'allenamento':
+                    found_work = True
+                    d = json.loads(r['dettaglio_json'])
+                    c1, c2 = st.columns([4,1])
+                    c1.write(f"**{d.get('nome_sessione','Workout')}** ({d['durata']} min)")
+                    if c2.button("🗑️", key=f"d_dash_w_{idx}"): delete_riga(idx); st.rerun()
+            if not found_work: st.caption("Riposo oggi?")
+        else: st.caption("Nessun allenamento.")
+
+    # COLONNA CENTRALE: Grafico Peso
+    with col_center:
+        st.subheader("📉 Andamento Peso")
+        if not df.empty:
+            misure_list = []
+            for _, r in df.iterrows():
+                if r['tipo'] == 'misure':
+                    try:
+                        d = json.loads(r['dettaglio_json'])
+                        # Aggiungiamo data e peso
+                        misure_list.append({"Data": r['data'], "Peso (kg)": d['peso']})
+                    except: pass
+            
+            if misure_list:
+                chart_data = pd.DataFrame(misure_list).set_index("Data")
+                st.line_chart(chart_data, color="#0051FF")
+            else:
+                st.info("Registra il tuo peso nella scheda 'Misure' per vedere il grafico.")
+
+    # COLONNA DESTRA: Foto Obiettivo (Goal Physique)
+    with col_right:
+        st.subheader("🏆 Obiettivo")
+        with st.container(border=True):
+            st.write("Carica la foto del risultato che vuoi ottenere:")
+            
+            # Opzione 1: Upload (Temporaneo per la sessione)
+            uploaded_file = st.file_uploader("Carica Foto", type=['jpg', 'png', 'jpeg'])
+            
+            # Opzione 2: Link (Se uno vuole che rimanga)
+            url_foto = st.text_input("Oppure incolla Link Foto (URL)", placeholder="https://...")
+
+            if uploaded_file is not None:
+                st.image(uploaded_file, caption="Il tuo obiettivo", use_container_width=True)
+            elif url_foto:
+                try:
+                    st.image(url_foto, caption="Il tuo obiettivo", use_container_width=True)
+                except:
+                    st.error("Link non valido")
+            else:
+                st.caption("Nessuna foto caricata.")
 
 # --- CIBO ---
 with tab2:
@@ -128,11 +209,8 @@ with tab2:
         st.subheader("🍽️ Mangia")
         pasto = st.selectbox("Momento", ["Colazione", "Pranzo", "Cena", "Spuntino"])
         sel_cibo = st.selectbox("Cerca Cibo", ["-- Manuale --"] + nomi_cibi)
-        
-        # CORREZIONE 1: min_value=1.0 permette di inserire anche 1 grammo
         gr = st.number_input("Grammi Consumati", min_value=1.0, value=100.0, step=10.0)
 
-        # Autocompilazione
         v_n, v_k, v_p, v_c, v_f = "", 0.0, 0.0, 0.0, 0.0
         if sel_cibo != "-- Manuale --" and not df_cibi.empty:
             row = df_cibi[df_cibi['nome'] == sel_cibo].iloc[0]
@@ -142,11 +220,12 @@ with tab2:
         with st.form("f_pasto"):
             st.caption(f"Valori calcolati per {gr}g")
             nome = st.text_input("Nome", v_n)
-            k = st.number_input("Kcal", value=float(v_k))
-            p = st.number_input("Pro", value=float(v_p))
-            c = st.number_input("Carb", value=float(v_c))
-            fat = st.number_input("Fat", value=float(v_f))
-            if st.form_submit_button("Aggiungi al Diario"):
+            c1,c2,c3,c4 = st.columns(4)
+            k = c1.number_input("Kcal", value=float(v_k))
+            p = c2.number_input("Pro", value=float(v_p))
+            c = c3.number_input("Carb", value=float(v_c))
+            fat = c4.number_input("Fat", value=float(v_f))
+            if st.form_submit_button("Aggiungi"):
                 add_riga_diario("pasto", {"pasto":pasto, "nome":nome, "cal":k, "pro":p, "carb":c, "fat":fat, "gr":gr})
                 st.success("Aggiunto!"); st.rerun()
 
@@ -160,13 +239,12 @@ with tab2:
                     new = pd.DataFrame([{"nome":nn, "kcal":kk, "pro":pp, "carb":cc, "fat":ff}])
                     save_data("cibi", pd.concat([df_cibi, new], ignore_index=True))
                     st.success("Salvato!"); st.rerun()
-
-    # CORREZIONE 2: LISTA CON TASTO ELIMINA DIRETTAMENTE QUI
+    
+    # Lista Pasti con Elimina
     st.divider()
-    st.subheader("📋 I tuoi pasti di oggi")
+    st.subheader("Riepilogo Pasti Oggi")
     df = get_data("diario")
     df_oggi = df[df['data'] == get_oggi()] if not df.empty else pd.DataFrame()
-    
     if not df_oggi.empty:
         for idx, r in df_oggi.iterrows():
             if r['tipo'] == 'pasto':
@@ -175,14 +253,8 @@ with tab2:
                     cc1, cc2, cc3 = st.columns([1, 4, 1])
                     cc1.write(f"**{d['pasto']}**")
                     cc2.write(f"{d['nome']} ({int(d.get('gr',0))}g) - {int(d['cal'])} kcal")
-                    # Tasto Elimina Rosso
-                    if cc3.button("🗑️", key=f"del_food_{idx}"):
-                        delete_riga(idx)
-                        st.toast("Cancellato!")
-                        st.rerun()
+                    if cc3.button("🗑️", key=f"del_list_p_{idx}"): delete_riga(idx); st.rerun()
                 except: pass
-    else:
-        st.info("Nessun pasto registrato oggi.")
 
 # --- WORKOUT ---
 with tab3:
@@ -192,7 +264,7 @@ with tab3:
     col_setup, col_list = st.columns([1, 2])
     with col_setup:
         st.subheader("Impostazioni")
-        nome_sessione = st.text_input("Nome Sessione", value="Workout", placeholder="es. Scheda A, Cardio...")
+        nome_sessione = st.text_input("Nome Sessione", value="Workout", placeholder="es. Scheda A")
         st.markdown("---")
         tipo_ex = st.radio("Tipo Attività", ["🏋️ Pesi", "🏃 Cardio"], horizontal=True)
         df_ex = get_data("esercizi")
@@ -200,36 +272,34 @@ with tab3:
 
         if tipo_ex == "🏋️ Pesi":
             ex_sel = st.selectbox("Esercizio", ["-- Nuovo/Manuale --"] + lista_ex)
-            nome_ex = ex_sel if ex_sel != "-- Nuovo/Manuale --" else st.text_input("Nome (es. Panca)")
+            nome_ex = ex_sel if ex_sel != "-- Nuovo/Manuale --" else st.text_input("Nome")
             c1, c2, c3 = st.columns(3)
             serie = c1.number_input("Serie", 1, step=1)
             reps = c2.number_input("Reps", 1, step=1)
             kg = c3.number_input("Kg", 0.0, step=0.5)
             if st.button("➕ Aggiungi Pesi", type="primary"):
-                if nome_ex:
-                    st.session_state['sess_w'].append({"type": "pesi", "nome": nome_ex, "serie": serie, "reps": reps, "kg": kg})
-                else: st.error("Inserisci il nome!")
+                if nome_ex: st.session_state['sess_w'].append({"type": "pesi", "nome": nome_ex, "serie": serie, "reps": reps, "kg": kg})
+                else: st.error("Inserisci nome")
         else:
-            nome_cardio = st.text_input("Attività (es. Corsa)", "Corsa")
+            nome_cardio = st.text_input("Attività", "Corsa")
             c1, c2, c3 = st.columns(3)
             km = c1.number_input("Km", 0.0, step=0.1)
-            tempo = c2.number_input("Minuti", 0, step=1)
+            tempo = c2.number_input("Min", 0, step=1)
             kcal_burn = c3.number_input("Kcal", 0, step=10)
             if st.button("➕ Aggiungi Cardio", type="primary"):
-                if nome_cardio:
-                    st.session_state['sess_w'].append({"type": "cardio", "nome": nome_cardio, "km": km, "tempo": tempo, "kcal": kcal_burn})
+                st.session_state['sess_w'].append({"type": "cardio", "nome": nome_cardio, "km": km, "tempo": tempo, "kcal": kcal_burn})
         
         st.markdown("---")
-        with st.expander("📝 Crea Esercizio (DB)"):
+        with st.expander("📝 Crea Esercizio DB"):
             with st.form("new_ex_db"):
-                new_n = st.text_input("Nome Esercizio")
-                if st.form_submit_button("Salva in DB"):
-                    if new_n:
-                        save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":new_n}])], ignore_index=True))
-                        st.success("Creato!"); st.rerun()
+                n_new = st.text_input("Nome Esercizio")
+                if st.form_submit_button("Salva"):
+                    if n_new:
+                        save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":n_new}])], ignore_index=True))
+                        st.success("OK"); st.rerun()
 
     with col_list:
-        st.subheader(f"Sessione: {nome_sessione}")
+        st.subheader(f"In corso: {nome_sessione}")
         if st.session_state['sess_w']:
             for i, item in enumerate(st.session_state['sess_w']):
                 with st.container(border=True):
@@ -237,39 +307,25 @@ with tab3:
                     cols[0].title("🏋️" if item['type']=="pesi" else "🏃")
                     with cols[1]:
                         st.write(f"**{item['nome']}**")
-                        if item['type'] == "pesi": st.caption(f"{item['serie']} x {item['reps']} @ {item['kg']} kg")
-                        else: st.caption(f"{item['km']} km in {item['tempo']} min ({item['kcal']} kcal)")
-                    if cols[2].button("❌", key=f"del_sess_{i}"): st.session_state['sess_w'].pop(i); st.rerun()
-
-            durata_tot = st.number_input("Durata Totale (min)", 0, step=5)
+                        if item['type'] == "pesi": st.caption(f"{item['serie']}x{item['reps']} @ {item['kg']}kg")
+                        else: st.caption(f"{item['km']}km in {item['tempo']}min")
+                    if cols[2].button("❌", key=f"d_s_{i}"): st.session_state['sess_w'].pop(i); st.rerun()
+            
+            durata_tot = st.number_input("Durata Tot (min)", 0, step=5)
             if st.button("💾 SALVA SESSIONE", type="primary", use_container_width=True):
                 add_riga_diario("allenamento", {"nome_sessione": nome_sessione, "durata": durata_tot, "esercizi": st.session_state['sess_w']})
                 st.session_state['sess_w'] = []; st.success("Salvato!"); st.rerun()
-    
-    # Lista Allenamenti Oggi con Tasto Elimina
-    st.divider()
-    st.subheader("📋 Allenamenti completati oggi")
-    df = get_data("diario")
-    df_oggi = df[df['data'] == get_oggi()] if not df.empty else pd.DataFrame()
-    if not df_oggi.empty:
-        for idx, r in df_oggi.iterrows():
-            if r['tipo'] == 'allenamento':
-                d = json.loads(r['dettaglio_json'])
-                c1, c2 = st.columns([5,1])
-                c1.info(f"✅ {d.get('nome_sessione','Workout')} ({d['durata']} min)")
-                if c2.button("🗑️", key=f"del_stored_w_{idx}"): delete_riga(idx); st.rerun()
 
 # --- MISURE ---
 with tab4:
     st.header("📏 Misure Corporee")
+    st.caption("Aggiorna qui il tuo peso per vederlo nel grafico in Dashboard.")
     with st.form("misure_form"):
         col1, col2 = st.columns(2)
         peso = col1.number_input("Peso Corporeo (kg)", 0.0, step=0.1, format="%.1f")
         alt = col2.number_input("Altezza (cm)", 0, step=1)
         c1, c2, c3 = st.columns(3)
-        collo = c1.number_input("Collo (cm)", 0.0, step=0.5)
-        vita = c2.number_input("Vita (cm)", 0.0, step=0.5)
-        fianchi = c3.number_input("Fianchi (cm)", 0.0, step=0.5)
+        collo = c1.number_input("Collo", 0.0); vita = c2.number_input("Vita", 0.0); fianchi = c3.number_input("Fianchi", 0.0)
         if st.form_submit_button("Salva Misure"):
             add_riga_diario("misure", {"peso":peso, "alt":alt, "collo":collo, "vita":vita, "fianchi":fianchi})
             st.success("Aggiornato!"); st.rerun()
