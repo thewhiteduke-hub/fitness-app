@@ -93,6 +93,17 @@ def save_nuovo_cibo(nome, k, p, c, f):
     df_aggiornato = pd.concat([df, nuova_riga], ignore_index=True)
     conn.update(worksheet="cibi", data=df_aggiornato)
 
+def delete_riga(indice_da_eliminare):
+    # 1. Scarica tutto il diario
+    df = get_data_diario()
+    
+    # 2. Elimina la riga che ha quell'indice specifico
+    # (drop elimina la riga mantenendo intatti gli altri dati)
+    df_aggiornato = df.drop(indice_da_eliminare)
+    
+    # 3. Ricarica il foglio pulito su Google Sheets
+    conn.update(worksheet="diario", data=df_aggiornato)
+
 def get_oggi(): return datetime.datetime.now().strftime("%Y-%m-%d")
 
 # ==========================================
@@ -112,24 +123,73 @@ with tab1:
     
     # Filtra solo le righe di oggi
     oggi = get_oggi()
+    
+    cal = pro = carb = fat = 0
+    
+    # Se il diario non è vuoto, calcoliamo i totali
     if not df_diario.empty:
+        # Filtriamo per data
         df_oggi = df_diario[df_diario['data'] == oggi]
+        
+        # Calcolo Totali (Loop veloce)
+        for index, row in df_oggi.iterrows():
+            try:
+                dettagli = json.loads(row['dettaglio_json'])
+                if row['tipo'] == 'pasto':
+                    cal += dettagli['cal']; pro += dettagli['pro']; carb += dettagli['carb']; fat += dettagli['fat']
+            except:
+                pass
     else:
         df_oggi = pd.DataFrame()
 
-    cal = pro = carb = fat = 0
-    list_pasti = []
-    list_allenamenti = []
+    # Metriche in alto
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Kcal", int(cal)); c2.metric("Pro", int(pro)); c3.metric("Carb", int(carb)); c4.metric("Fat", int(fat))
+    
+    st.divider()
+    
+    # --- LISTA INTERATTIVA CON TASTO ELIMINA ---
+    col_a, col_b = st.columns(2)
+    
+    with col_a:
+        st.subheader("🍎 Pasti Mangiati")
+        if not df_oggi.empty:
+            # Iteriamo sulle righe per mostrare i bottoni
+            for index, row in df_oggi.iterrows():
+                if row['tipo'] == 'pasto':
+                    dett = json.loads(row['dettaglio_json'])
+                    
+                    # Creiamo due colonne: una per il testo, una per il bottone
+                    c_txt, c_btn = st.columns([4, 1])
+                    
+                    with c_txt:
+                        st.text(f"🍽️ {dett['pasto']}: {dett['nome']} ({int(dett['cal'])} kcal)")
+                    
+                    with c_btn:
+                        # Il "key" deve essere unico per ogni bottone, usiamo l'index della riga
+                        if st.button("🗑️", key=f"del_p_{index}"):
+                            delete_riga(index)
+                            st.toast(f"Cancellato: {dett['nome']}")
+                            st.rerun() # Ricarica la pagina subito
 
-    if not df_oggi.empty:
-        for index, row in df_oggi.iterrows():
-            dettagli = json.loads(row['dettaglio_json']) # Riconverte testo in dict
-            
-            if row['tipo'] == 'pasto':
-                cal += dettagli['cal']; pro += dettagli['pro']; carb += dettagli['carb']; fat += dettagli['fat']
-                list_pasti.append(dettagli)
-            elif row['tipo'] == 'allenamento':
-                list_allenamenti.append(dettagli)
+    with col_b:
+        st.subheader("💪 Allenamenti Fatti")
+        if not df_oggi.empty:
+            for index, row in df_oggi.iterrows():
+                if row['tipo'] == 'allenamento':
+                    dett = json.loads(row['dettaglio_json'])
+                    
+                    c_txt, c_btn = st.columns([4, 1])
+                    with c_txt:
+                        st.info(f"Sessione: {dett['durata']} min")
+                        for ex in dett['esercizi']:
+                            st.caption(f"- {ex['nome']}")
+                    
+                    with c_btn:
+                        if st.button("🗑️", key=f"del_w_{index}"):
+                            delete_riga(index)
+                            st.toast("Allenamento eliminato")
+                            st.rerun()
 
     # Metriche
     c1, c2, c3, c4 = st.columns(4)
