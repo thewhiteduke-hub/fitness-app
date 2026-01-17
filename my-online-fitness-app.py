@@ -14,12 +14,9 @@ st.set_page_config(page_title="Fit Tracker Pro", page_icon="💪", layout="wide"
 # CSS Avanzato per trasformare Streamlit in una Web App moderna
 st.markdown("""
 <style>
-    /* Sfondo generale leggermente grigio per far risaltare le card */
     .stApp {
         background-color: #F8F9FB;
     }
-    
-    /* Stile per i container (Card Effect) */
     div[data-testid="stContainer"] {
         background-color: #ffffff;
         border-radius: 16px;
@@ -27,44 +24,25 @@ st.markdown("""
         border: 1px solid #f0f2f6;
         box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     }
-    
-    /* Sidebar Styling */
     section[data-testid="stSidebar"] {
         background-color: #ffffff;
         border-right: 1px solid #f0f2f6;
     }
-    
-    /* Metriche */
     div[data-testid="stMetricValue"] {
         font-size: 28px;
         font-weight: 700;
         color: #0051FF;
     }
-    div[data-testid="stMetricLabel"] {
-        font-size: 14px;
-        color: #6c757d;
-    }
-    
-    /* Titoli */
     h1, h2, h3 {
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
         color: #1a1a1a;
         font-weight: 700;
     }
-    
-    /* Bottoni Primari */
-    button[kind="primary"] {
-        background-color: #0051FF;
+    /* Fix CSS per i bottoni */
+    div.stButton > button:first-child {
         border-radius: 8px;
-        border: none;
         transition: all 0.2s;
     }
-    button[kind="primary"]:hover {
-        background-color: #003db3;
-        box-shadow: 0 4px 8px rgba(0,81,255,0.2);
-    }
-    
-    /* Immagini Arrotondate */
     img {
         border-radius: 12px;
     }
@@ -154,7 +132,7 @@ with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=50)
     st.markdown("### Fit Tracker Pro")
     
-    # 1. FOTO OBIETTIVO (Sempre visibile)
+    # 1. FOTO OBIETTIVO
     st.markdown("---")
     st.markdown("**🏆 Il tuo Obiettivo**")
     url_foto = get_foto_obiettivo()
@@ -164,7 +142,7 @@ with st.sidebar:
     else:
         st.info("Nessuna foto impostata")
     
-    # TASTO PER CAMBIARE FOTO (Expander)
+    # TASTO PER CAMBIARE FOTO
     with st.expander("📸 Cambia Foto"):
         new_url = st.text_input("Incolla Link (.jpg/.png)", key="side_url_foto")
         if st.button("Salva Foto", key="side_btn_foto"):
@@ -188,7 +166,6 @@ with st.sidebar:
     st.markdown("**🤖 AI Coach**")
     if "chat" not in st.session_state: st.session_state.chat = []
     
-    # Mostriamo solo l'ultima risposta per non intasare la sidebar
     if st.session_state.chat:
         last_msg = st.session_state.chat[-1]
         if last_msg['role'] == 'assistant':
@@ -220,7 +197,6 @@ with tab1:
     oggi = get_oggi()
     df_oggi = df[df['data'] == oggi] if not df.empty else pd.DataFrame()
     
-    # CALCOLI
     cal = pro = carb = fat = 0
     pasti_oggi = []
     
@@ -302,7 +278,8 @@ with tab2:
                 with st.expander("Valori Nutrizionali (Opzionale)"):
                     k=st.number_input("K",0.0, key="ik"); p=st.number_input("P",0.0, key="ip"); c=st.number_input("C",0.0, key="ic"); f=st.number_input("F",0.0, key="if")
                 
-                if st.button("Aggiungi Integratore", kind="primary", use_container_width=True, key="btn_int"):
+                # FIX: kind -> type
+                if st.button("Aggiungi Integratore", type="primary", use_container_width=True, key="btn_int"):
                     if nome:
                         add_riga_diario("pasto", {"pasto":cat,"nome":nome,"gr":q,"unita":unita,"cal":k,"pro":p,"carb":c,"fat":f})
                         st.success("Salvato!"); st.rerun()
@@ -325,7 +302,8 @@ with tab2:
                 c = m3.number_input("Carb", value=float(vc*fac), key="fc")
                 f = m4.number_input("Fat", value=float(vf*fac), key="ff")
                 
-                if st.button("Aggiungi Pasto", kind="primary", use_container_width=True, key="btn_food"):
+                # FIX: kind -> type
+                if st.button("Aggiungi Pasto", type="primary", use_container_width=True, key="btn_food"):
                     if nome:
                         add_riga_diario("pasto", {"pasto":cat,"nome":nome,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f})
                         st.success("Salvato!"); st.rerun()
@@ -385,7 +363,8 @@ with tab3:
             
             st.divider()
             dur = st.number_input("Durata Totale (min)", 0, step=5, key="w_dur_tot")
-            if st.button("Termina e Salva Sessione", kind="primary", use_container_width=True, key="w_save_all"):
+            # FIX: kind -> type
+            if st.button("Termina e Salva Sessione", type="primary", use_container_width=True, key="w_save_all"):
                 add_riga_diario("allenamento", {"nome_sessione":sess,"durata":dur,"esercizi":st.session_state['sess_w']})
                 st.session_state['sess_w'] = []; st.balloons(); st.success("Grande allenamento!"); st.rerun()
         else:
