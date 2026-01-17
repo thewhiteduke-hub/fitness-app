@@ -7,79 +7,40 @@ import altair as alt
 import google.generativeai as genai
 
 # ==========================================
-# 🎨 UI/UX DESIGN SYSTEM (DARK MODE & KEY FIX)
+# 🎨 SETUP PRO (Il design è gestito da config.toml)
 # ==========================================
 st.set_page_config(page_title="Fit Tracker Pro", page_icon="💪", layout="wide")
 
+# CSS SOLO per Layout, Ombre e Bordi (I colori sono nel config.toml)
 st.markdown("""
 <style>
-    /* 1. Global Background & Text */
-    .stApp {
-        background-color: #F8F9FB;
-        color: #1f1f1f;
-    }
-    p, div, label, span, li, h1, h2, h3, h4, h5, h6 {
-        color: #1f1f1f !important;
-    }
-    
-    /* 2. Headlines in Electric Blue */
-    h1, h2, h3, h4, h5, h6 {
-        color: #0051FF !important;
-        font-family: 'Helvetica Neue', sans-serif;
-    }
-    
-    /* 3. White Cards with Shadow */
+    /* Card Design */
     div[data-testid="stContainer"] {
-        background-color: #ffffff;
         border-radius: 12px;
         padding: 20px;
         border: 1px solid #e0e0e0;
         box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        background-color: white;
     }
     
-    /* 4. Sidebar */
+    /* Sidebar Border */
     section[data-testid="stSidebar"] {
-        background-color: #ffffff;
         border-right: 1px solid #e0e0e0;
     }
     
-    /* 5. CRITICAL FIX: DROPDOWN MENUS (Selectbox) */
-    /* Force white background and black text for the dropdown selection box */
-    div[data-baseweb="select"] > div {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-        border: 1px solid #ccc;
-    }
-    /* Force the dropdown popover menu to be white */
-    div[data-baseweb="popover"], div[data-baseweb="menu"] {
-        background-color: #ffffff !important;
-    }
-    /* Force options inside the menu to be black text on white background */
-    div[role="option"] {
-        color: #000000 !important;
-        background-color: #ffffff !important;
-    }
-    /* Hover effect for options */
-    div[role="option"]:hover {
-        background-color: #f0f2f6 !important;
+    /* Titoli */
+    h1, h2, h3 {
+        font-family: 'Helvetica Neue', sans-serif;
+        font-weight: 700;
     }
     
-    /* 6. Input Fields (Text & Number) */
-    .stTextInput input, .stNumberInput input {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-        border: 1px solid #ccc;
-    }
-    
-    /* 7. Metrics */
+    /* Metriche Grandi */
     div[data-testid="stMetricValue"] {
-        color: #0051FF !important;
-        font-size: 26px !important;
-    }
-    div[data-testid="stMetricLabel"] {
-        color: #666 !important;
+        font-size: 28px;
+        font-weight: 700;
     }
     
+    /* Immagini stondate */
     img { border-radius: 12px; }
 </style>
 """, unsafe_allow_html=True)
@@ -96,13 +57,13 @@ def check_password():
         st.write("")
         with st.container(border=True):
             st.title("🔒 Accesso")
-            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_final")
+            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_v6")
     return False
 
 def password_entered():
-    if st.session_state["pwd_login_final"] == st.secrets["APP_PASSWORD"]:
+    if st.session_state["pwd_login_v6"] == st.secrets["APP_PASSWORD"]:
         st.session_state["password_correct"] = True
-        del st.session_state["pwd_login_final"]
+        del st.session_state["pwd_login_v6"]
     else: st.error("Password errata")
 
 if not check_password(): st.stop()
@@ -117,7 +78,7 @@ try:
 except: pass
 
 # ==========================================
-# 🔗 DATABASE & FUNCTIONS
+# 🔗 DATABASE
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
@@ -162,16 +123,17 @@ user_settings = get_user_settings()
 
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=60)
-    st.markdown("### Fit Tracker v5.4")
+    st.markdown("### Fit Tracker Pro")
+    st.caption("v6.0 - Ultimate")
     
     st.markdown("---")
-    st.markdown("**🎯 I tuoi Obiettivi**")
-    with st.expander("Modifica Target"):
-        with st.form("target_form"):
-            tc = st.number_input("Target Kcal", value=int(user_settings['target_cal']))
-            tp = st.number_input("Target Pro", value=int(user_settings['target_pro']))
-            tca = st.number_input("Target Carb", value=int(user_settings['target_carb']))
-            tf = st.number_input("Target Fat", value=int(user_settings['target_fat']))
+    st.markdown("**🎯 Target**")
+    with st.expander("Modifica"):
+        with st.form("t_form"):
+            tc=st.number_input("Kcal", int(user_settings['target_cal']))
+            tp=st.number_input("Pro", int(user_settings['target_pro']))
+            tca=st.number_input("Carb", int(user_settings['target_carb']))
+            tf=st.number_input("Fat", int(user_settings['target_fat']))
             if st.form_submit_button("Salva"):
                 ns = user_settings.copy(); ns.update({"target_cal":tc,"target_pro":tp,"target_carb":tca,"target_fat":tf})
                 add_riga_diario("settings", ns); st.rerun()
@@ -184,25 +146,25 @@ with st.sidebar:
     else: st.info("No foto")
     
     with st.expander("📸 Cambia"):
-        nu = st.text_input("Link Foto", key="side_url")
-        if st.button("Salva", key="side_btn"):
+        nu = st.text_input("Link Foto", key="s_url")
+        if st.button("Salva", key="s_btn"):
             if nu:
                 ns = user_settings.copy(); ns['url_foto'] = nu
                 add_riga_diario("settings", ns); st.rerun()
 
     st.markdown("---")
     st.markdown("**⚖️ Peso Rapido**")
-    w_fast = st.number_input("Peso (kg)", 0.0, format="%.1f", key="side_w_fast")
+    w_fast = st.number_input("Peso (kg)", 0.0, format="%.1f", key="side_w_f")
     if st.button("Salva Peso", key="side_btn_w"):
         if w_fast > 0:
             add_riga_diario("misure", {"peso": w_fast})
             st.toast("Salvato!"); st.rerun()
 
     st.markdown("---")
-    st.markdown("**🤖 Coach AI**")
+    st.markdown("**🤖 Coach**")
     if "chat" not in st.session_state: st.session_state.chat = []
-    q_ai = st.text_input("Chiedi...", key="side_ai_q")
-    if st.button("Invia", key="side_ai_btn"):
+    q_ai = st.text_input("Chiedi...", key="s_ai")
+    if st.button("Invia", key="s_aibtn"):
         st.session_state.chat.append({"role":"user","txt":q_ai})
         ans="Errore AI"; 
         if gemini_ok:
@@ -225,7 +187,6 @@ with tab1:
     oggi = get_oggi()
     df_oggi = df[df['data'] == oggi] if not df.empty else pd.DataFrame()
     
-    # 1. CALCOLI
     cal=pro=carb=fat=0
     pasti=[]; allenamenti=[]
     
@@ -240,7 +201,6 @@ with tab1:
                     allenamenti.append(d)
             except: pass
 
-    # 2. PESO
     misure_list = []
     curr_peso = "--"
     if not df.empty:
@@ -270,7 +230,6 @@ with tab1:
 
     # GRAFICI
     cg1, cg2 = st.columns([2, 1])
-    
     with cg1:
         with st.container():
             st.subheader("📉 Andamento Peso")
@@ -284,8 +243,7 @@ with tab1:
 
     with cg2:
         with st.container():
-            # Titolo cambiato come richiesto
-            st.subheader("📊 Ripartizione Macro") 
+            st.subheader("📊 Ripartizione Macro") # Titolo corretto
             if cal>0:
                 s = pd.DataFrame({"M":["P","C","F"], "V":[pro*4,carb*4,fat*9]})
                 c = alt.Chart(s).encode(theta=alt.Theta("V",stack=True), color=alt.Color("M", scale=alt.Scale(range=['#0051FF','#FFC107','#FF4B4B'])))
@@ -349,7 +307,6 @@ with tab2:
                 gr = c2.number_input("Grammi", 100.0, step=10.0, key="f_gr")
                 fac = gr/100
                 m1,m2,m3,m4=st.columns(4)
-                # CHIAVI UNICHE (fk, fp...)
                 k=m1.number_input("K",float(vk*fac),key="fk"); p=m2.number_input("P",float(vp*fac),key="fp"); c=m3.number_input("C",float(vc*fac),key="fc"); f=m4.number_input("F",float(vf*fac),key="ff")
                 if st.button("Mangia", type="primary", use_container_width=True, key="bf"):
                     if nom: add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f}); st.success("OK"); st.rerun()
@@ -406,9 +363,8 @@ with tab4:
     else: st.info("No data")
     with st.expander("Misure Complete"):
         c1,c2 = st.columns(2)
-        # CHIAVI AGGIORNATE (mis_*) PER UNICITÀ
-        p=c1.number_input("Peso", key="mis_p"); a=c2.number_input("Altezza", key="mis_a")
+        p=c1.number_input("Peso", key="ms_p"); a=c2.number_input("Altezza", key="ms_a")
         c3,c4,c5 = st.columns(3)
-        co=c3.number_input("Collo", key="mis_co"); vi=c4.number_input("Vita", key="mis_vi"); fi=c5.number_input("Fianchi", key="mis_fi")
+        co=c3.number_input("Collo", key="ms_co"); vi=c4.number_input("Vita", key="ms_vi"); fi=c5.number_input("Fianchi", key="ms_fi")
         if st.button("Salva", key="fs"):
             add_riga_diario("misure", {"peso":p,"alt":a,"collo":co,"vita":vi,"fianchi":fi}); st.success("OK")
