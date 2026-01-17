@@ -7,13 +7,13 @@ import altair as alt
 import google.generativeai as genai
 
 # ==========================================
-# 🎨 UI/UX DESIGN SYSTEM (MENU FIX DEFINITIVO)
+# 🎨 UI/UX DESIGN SYSTEM (DARK MODE & KEY FIX)
 # ==========================================
 st.set_page_config(page_title="Fit Tracker Pro", page_icon="💪", layout="wide")
 
 st.markdown("""
 <style>
-    /* 1. Sfondo e Testo Base */
+    /* 1. Global Background & Text */
     .stApp {
         background-color: #F8F9FB;
         color: #1f1f1f;
@@ -22,13 +22,13 @@ st.markdown("""
         color: #1f1f1f !important;
     }
     
-    /* 2. Titoli in Blu Elettrico */
+    /* 2. Headlines in Electric Blue */
     h1, h2, h3, h4, h5, h6 {
         color: #0051FF !important;
         font-family: 'Helvetica Neue', sans-serif;
     }
     
-    /* 3. Card Bianche con Ombra */
+    /* 3. White Cards with Shadow */
     div[data-testid="stContainer"] {
         background-color: #ffffff;
         border-radius: 12px;
@@ -43,33 +43,35 @@ st.markdown("""
         border-right: 1px solid #e0e0e0;
     }
     
-    /* 5. FIX NUCLEARE PER IL MENU A TENDINA */
-    /* Forza qualsiasi testo dentro i menu a tendina a essere NERO su BIANCO */
-    div[data-baseweb="select"] * {
-        color: black !important;
-        background-color: white !important;
+    /* 5. CRITICAL FIX: DROPDOWN MENUS (Selectbox) */
+    /* Force white background and black text for the dropdown selection box */
+    div[data-baseweb="select"] > div {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #ccc;
     }
-    div[data-baseweb="popover"] * {
-        color: black !important;
-        background-color: white !important;
+    /* Force the dropdown popover menu to be white */
+    div[data-baseweb="popover"], div[data-baseweb="menu"] {
+        background-color: #ffffff !important;
     }
-    div[data-baseweb="menu"] * {
-        color: black !important;
-        background-color: white !important;
+    /* Force options inside the menu to be black text on white background */
+    div[role="option"] {
+        color: #000000 !important;
+        background-color: #ffffff !important;
     }
-    ul[role="listbox"] li {
-        color: black !important;
-        background-color: white !important;
+    /* Hover effect for options */
+    div[role="option"]:hover {
+        background-color: #f0f2f6 !important;
     }
     
-    /* 6. Input Fields */
+    /* 6. Input Fields (Text & Number) */
     .stTextInput input, .stNumberInput input {
         background-color: #ffffff !important;
         color: #000000 !important;
         border: 1px solid #ccc;
     }
     
-    /* 7. Metriche */
+    /* 7. Metrics */
     div[data-testid="stMetricValue"] {
         color: #0051FF !important;
         font-size: 26px !important;
@@ -94,13 +96,13 @@ def check_password():
         st.write("")
         with st.container(border=True):
             st.title("🔒 Accesso")
-            st.text_input("Password", type="password", on_change=password_entered, key="pwd_final")
+            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_final")
     return False
 
 def password_entered():
-    if st.session_state["pwd_final"] == st.secrets["APP_PASSWORD"]:
+    if st.session_state["pwd_login_final"] == st.secrets["APP_PASSWORD"]:
         st.session_state["password_correct"] = True
-        del st.session_state["pwd_final"]
+        del st.session_state["pwd_login_final"]
     else: st.error("Password errata")
 
 if not check_password(): st.stop()
@@ -160,7 +162,7 @@ user_settings = get_user_settings()
 
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=60)
-    st.markdown("### Fit Tracker v5.3")
+    st.markdown("### Fit Tracker v5.4")
     
     st.markdown("---")
     st.markdown("**🎯 I tuoi Obiettivi**")
@@ -182,15 +184,15 @@ with st.sidebar:
     else: st.info("No foto")
     
     with st.expander("📸 Cambia"):
-        nu = st.text_input("Link Foto", key="s_url")
-        if st.button("Salva", key="s_btn"):
+        nu = st.text_input("Link Foto", key="side_url")
+        if st.button("Salva", key="side_btn"):
             if nu:
                 ns = user_settings.copy(); ns['url_foto'] = nu
                 add_riga_diario("settings", ns); st.rerun()
 
     st.markdown("---")
     st.markdown("**⚖️ Peso Rapido**")
-    w_fast = st.number_input("Peso (kg)", 0.0, format="%.1f", key="side_w_f")
+    w_fast = st.number_input("Peso (kg)", 0.0, format="%.1f", key="side_w_fast")
     if st.button("Salva Peso", key="side_btn_w"):
         if w_fast > 0:
             add_riga_diario("misure", {"peso": w_fast})
@@ -199,8 +201,8 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("**🤖 Coach AI**")
     if "chat" not in st.session_state: st.session_state.chat = []
-    q_ai = st.text_input("Chiedi...", key="s_ai")
-    if st.button("Invia", key="s_aibtn"):
+    q_ai = st.text_input("Chiedi...", key="side_ai_q")
+    if st.button("Invia", key="side_ai_btn"):
         st.session_state.chat.append({"role":"user","txt":q_ai})
         ans="Errore AI"; 
         if gemini_ok:
@@ -347,6 +349,7 @@ with tab2:
                 gr = c2.number_input("Grammi", 100.0, step=10.0, key="f_gr")
                 fac = gr/100
                 m1,m2,m3,m4=st.columns(4)
+                # CHIAVI UNICHE (fk, fp...)
                 k=m1.number_input("K",float(vk*fac),key="fk"); p=m2.number_input("P",float(vp*fac),key="fp"); c=m3.number_input("C",float(vc*fac),key="fc"); f=m4.number_input("F",float(vf*fac),key="ff")
                 if st.button("Mangia", type="primary", use_container_width=True, key="bf"):
                     if nom: add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f}); st.success("OK"); st.rerun()
@@ -403,8 +406,9 @@ with tab4:
     else: st.info("No data")
     with st.expander("Misure Complete"):
         c1,c2 = st.columns(2)
-        p=c1.number_input("Peso", key="fp"); a=c2.number_input("Altezza", key="fa")
+        # CHIAVI AGGIORNATE (mis_*) PER UNICITÀ
+        p=c1.number_input("Peso", key="mis_p"); a=c2.number_input("Altezza", key="mis_a")
         c3,c4,c5 = st.columns(3)
-        co=c3.number_input("Collo", key="fco"); vi=c4.number_input("Vita", key="fv"); fi=c5.number_input("Fianchi", key="ffi")
+        co=c3.number_input("Collo", key="mis_co"); vi=c4.number_input("Vita", key="mis_vi"); fi=c5.number_input("Fianchi", key="mis_fi")
         if st.button("Salva", key="fs"):
             add_riga_diario("misure", {"peso":p,"alt":a,"collo":co,"vita":vi,"fianchi":fi}); st.success("OK")
