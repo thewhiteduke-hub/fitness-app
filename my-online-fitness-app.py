@@ -305,26 +305,28 @@ with tab2:
     with ci:
         with st.container(border=True):
             st.subheader("Nuovo Inserimento")
-            cat = st.selectbox("Categoria", ["Colazione","Pranzo","Cena","Spuntino","Integrazione"])
+            cat = st.selectbox("Categoria", ["Colazione","Pranzo","Cena","Spuntino","Integrazione"], key="cat_select")
             
             if cat == "Integrazione":
-                tip = st.radio("Tipo", ["Polvere (g)", "Capsule (pz)", "Mg"], horizontal=True)
+                tip = st.radio("Tipo", ["Polvere (g)", "Capsule (pz)", "Mg"], horizontal=True, key="int_type_radio")
                 unita = "g" if "Polvere" in tip else ("cps" if "Capsule" in tip else "mg")
                 
                 c1,c2 = st.columns([2,1])
-                nome = c1.text_input("Nome Integratore")
-                q = c2.number_input(f"Dose ({unita})", 0.0, step=1.0)
+                # KEY AGGIUNTA QUI PER EVITARE DUPLICATI
+                nome = c1.text_input("Nome Integratore", key="nome_int_input")
+                q = c2.number_input(f"Dose ({unita})", 0.0, step=1.0, key="dose_int_input")
                 
                 with st.expander("Macro (Opzionale)"):
-                    k=st.number_input("K",0.0); pr=st.number_input("P",0.0); c=st.number_input("C",0.0); f=st.number_input("F",0.0)
+                    # KEYS AGGIUNTE
+                    k=st.number_input("K",0.0, key="k_int"); pr=st.number_input("P",0.0, key="p_int"); c=st.number_input("C",0.0, key="c_int"); f=st.number_input("F",0.0, key="f_int")
                 
-                if st.button("Aggiungi Integratore", type="primary", use_container_width=True):
+                if st.button("Aggiungi Integratore", type="primary", use_container_width=True, key="btn_add_int"):
                     if nome:
                         add_riga_diario("pasto", {"pasto":cat,"nome":nome,"gr":q,"unita":unita,"cal":k,"pro":pr,"carb":c,"fat":f})
                         st.success("Fatto!"); st.rerun()
             else:
-                sel = st.selectbox("Cerca", ["-- Manuale --"] + nomi)
-                gr = st.number_input("Grammi", 100.0, step=10.0)
+                sel = st.selectbox("Cerca", ["-- Manuale --"] + nomi, key="food_search_box")
+                gr = st.number_input("Grammi", 100.0, step=10.0, key="food_grams_input")
                 
                 vn,vk,vp,vc,vf = "",0,0,0,0
                 if sel != "-- Manuale --" and not df_cibi.empty:
@@ -332,11 +334,13 @@ with tab2:
                     fac = gr/100
                     vn=r['nome']; vk=r['kcal']*fac; vp=r['pro']*fac; vc=r['carb']*fac; vf=r['fat']*fac
                 
-                nome = st.text_input("Nome", vn)
+                # KEY AGGIUNTA
+                nome = st.text_input("Nome", vn, key="nome_pasto_input")
                 cc1,cc2,cc3,cc4 = st.columns(4)
-                k=cc1.number_input("Kcal", float(vk)); p=cc2.number_input("Pro", float(vp)); c=cc3.number_input("Carb", float(vc)); f=cc4.number_input("Fat", float(vf))
+                # KEYS AGGIUNTE
+                k=cc1.number_input("Kcal", float(vk), key="k_food"); p=cc2.number_input("Pro", float(vp), key="p_food"); c=cc3.number_input("Carb", float(vc), key="c_food"); f=cc4.number_input("Fat", float(vf), key="f_food")
                 
-                if st.button("Aggiungi Pasto", type="primary", use_container_width=True):
+                if st.button("Aggiungi Pasto", type="primary", use_container_width=True, key="btn_add_food"):
                     if nome:
                         add_riga_diario("pasto", {"pasto":cat,"nome":nome,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f})
                         st.success("Fatto!"); st.rerun()
@@ -344,7 +348,8 @@ with tab2:
     with cdb:
         st.subheader("💾 DB Cibi")
         with st.form("new_db"):
-            n=st.text_input("Nome"); k=st.number_input("Kcal (100g)"); p=st.number_input("Pro"); c=st.number_input("Carb"); f=st.number_input("Fat")
+            # KEY IMPLICITA NEL FORM O KEY ESPLICITA SE NECESSARIO
+            n=st.text_input("Nome", key="db_food_name"); k=st.number_input("Kcal (100g)", key="db_k"); p=st.number_input("Pro", key="db_p"); c=st.number_input("Carb", key="db_c"); f=st.number_input("Fat", key="db_f")
             if st.form_submit_button("Salva"):
                 if n:
                     save_data("cibi", pd.concat([df_cibi, pd.DataFrame([{"nome":n,"kcal":k,"pro":p,"carb":c,"fat":f}])], ignore_index=True))
@@ -359,21 +364,25 @@ with tab3:
 
     with c1:
         with st.container(border=True):
-            sess = st.text_input("Nome Sessione", "Workout")
-            mod = st.radio("Modo", ["Pesi", "Cardio"], horizontal=True)
+            sess = st.text_input("Nome Sessione", "Workout", key="sess_name_input")
+            mod = st.radio("Modo", ["Pesi", "Cardio"], horizontal=True, key="work_mode_radio")
             
             if mod == "Pesi":
-                sel = st.selectbox("Ex", ["-- Nuovo --"] + ls_ex)
-                nom = sel if sel != "-- Nuovo --" else st.text_input("Nome Ex")
-                s=st.number_input("Set",1); r=st.number_input("Reps",1); w=st.number_input("Kg",0.0)
-                if st.button("➕"): st.session_state['sess_w'].append({"type":"pesi","nome":nom,"serie":s,"reps":r,"kg":w})
+                sel = st.selectbox("Ex", ["-- Nuovo --"] + ls_ex, key="ex_select")
+                # KEY AGGIUNTA
+                nom = sel if sel != "-- Nuovo --" else st.text_input("Nome Ex", key="new_ex_name_input")
+                # KEYS AGGIUNTE
+                s=st.number_input("Set",1, key="set_in"); r=st.number_input("Reps",1, key="reps_in"); w=st.number_input("Kg",0.0, key="kg_in")
+                if st.button("➕", key="btn_add_weight"): st.session_state['sess_w'].append({"type":"pesi","nome":nom,"serie":s,"reps":r,"kg":w})
                 
                 with st.expander("Salva Ex in DB"):
-                    ndb = st.text_input("Nome"); 
-                    if st.button("Salva DB"): save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":ndb}])], ignore_index=True)); st.rerun()
+                    # KEY AGGIUNTA (Questa era quella che causava l'errore probabilmente)
+                    ndb = st.text_input("Nome Esercizio DB", key="db_new_ex_name"); 
+                    if st.button("Salva DB", key="btn_save_ex_db"): save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":ndb}])], ignore_index=True)); st.rerun()
             else:
-                act = st.text_input("Attività","Corsa"); km=st.number_input("Km"); mi=st.number_input("Min"); kc=st.number_input("Kcal")
-                if st.button("➕"): st.session_state['sess_w'].append({"type":"cardio","nome":act,"km":km,"tempo":mi,"kcal":kc})
+                # KEYS AGGIUNTE
+                act = st.text_input("Attività","Corsa", key="cardio_act"); km=st.number_input("Km", key="cardio_km"); mi=st.number_input("Min", key="cardio_min"); kc=st.number_input("Kcal", key="cardio_kcal")
+                if st.button("➕", key="btn_add_cardio"): st.session_state['sess_w'].append({"type":"cardio","nome":act,"km":km,"tempo":mi,"kcal":kc})
     
     with c2:
         st.subheader("In Corso")
@@ -384,8 +393,8 @@ with tab3:
                 cl1.write(txt)
                 if cl2.button("❌", key=f"wd_{i}"): st.session_state['sess_w'].pop(i); st.rerun()
         
-        dur = st.number_input("Minuti Totali", 0, step=5)
-        if st.button("💾 TERMINA", type="primary", use_container_width=True):
+        dur = st.number_input("Minuti Totali", 0, step=5, key="total_duration_input")
+        if st.button("💾 TERMINA", type="primary", use_container_width=True, key="btn_finish_workout"):
             add_riga_diario("allenamento", {"nome_sessione":sess,"durata":dur,"esercizi":st.session_state['sess_w']})
             st.session_state['sess_w'] = []; st.success("Salvato!"); st.rerun()
 
@@ -395,17 +404,19 @@ with tab4:
     with c1:
         with st.container(border=True):
             st.subheader("Aggiorna Misure")
-            p=st.number_input("Peso (kg)",0.0,format="%.1f"); a=st.number_input("Altezza (cm)",0)
+            # KEYS AGGIUNTE
+            p=st.number_input("Peso (kg)",0.0,format="%.1f", key="weight_input"); a=st.number_input("Altezza (cm)",0, key="height_input")
             c,v,f = st.columns(3)
-            co=c.number_input("Collo"); vi=v.number_input("Vita"); fi=f.number_input("Fianchi")
-            if st.button("Salva Misure", type="primary"):
+            # KEYS AGGIUNTE
+            co=c.number_input("Collo", key="neck_in"); vi=v.number_input("Vita", key="waist_in"); fi=f.number_input("Fianchi", key="hips_in")
+            if st.button("Salva Misure", type="primary", key="btn_save_measures"):
                 add_riga_diario("misure", {"peso":p,"alt":a,"collo":co,"vita":vi,"fianchi":fi})
                 st.success("Fatto!"); st.rerun()
     with c2:
         with st.container(border=True):
             st.subheader("Foto Obiettivo")
-            u = st.text_input("Link Foto (.jpg/.png)")
-            if st.button("Salva Foto"): add_riga_diario("settings", {"url_foto":u}); st.rerun()
+            u = st.text_input("Link Foto (.jpg/.png)", key="photo_url_input")
+            if st.button("Salva Foto", key="btn_save_photo"): add_riga_diario("settings", {"url_foto":u}); st.rerun()
 
 # --- TAB 5: AI ---
 with tab5:
