@@ -7,7 +7,7 @@ import altair as alt
 import google.generativeai as genai
 
 # ==========================================
-# 🎨 UI/UX DESIGN SYSTEM (VERSIONE 5.1 - FIX COLORI)
+# 🎨 UI/UX DESIGN SYSTEM (CONTRAST FIX DEFINITIVO)
 # ==========================================
 st.set_page_config(page_title="Fit Tracker Pro", page_icon="💪", layout="wide")
 
@@ -42,29 +42,38 @@ st.markdown("""
         background-color: #ffffff;
         border-right: 1px solid #e0e0e0;
     }
-    section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] span {
-        color: #1f1f1f !important;
-    }
     
-    /* 5. FIX CRITICO: MENU A TENDINA E INPUT */
-    /* Forza lo sfondo bianco e il testo nero per tutti i campi di input e selectbox */
-    div[data-baseweb="select"] > div, .stTextInput input, .stNumberInput input {
+    /* 5. FIX CRITICO: MENU A TENDINA (Selectbox) */
+    /* Questo blocco forza lo sfondo bianco e il testo nero nei menu a tendina */
+    div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
         border: 1px solid #ccc;
     }
     div[data-baseweb="popover"], div[data-baseweb="menu"] {
         background-color: #ffffff !important;
+        border: 1px solid #ccc;
     }
+    /* Opzioni dentro il menu */
     div[role="option"] {
-        color: #000000 !important;
         background-color: #ffffff !important;
     }
+    div[role="option"] > div {
+        color: #000000 !important;
+    }
+    /* Effetto Hover nel menu */
     div[role="option"]:hover {
         background-color: #f0f2f6 !important;
     }
     
-    /* 6. Metriche */
+    /* 6. Input Fields (Testo e Numeri) */
+    .stTextInput input, .stNumberInput input {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #ccc;
+    }
+    
+    /* 7. Metriche */
     div[data-testid="stMetricValue"] {
         color: #0051FF !important;
         font-size: 26px !important;
@@ -89,13 +98,13 @@ def check_password():
         st.write("")
         with st.container(border=True):
             st.title("🔒 Accesso")
-            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_51")
+            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_52")
     return False
 
 def password_entered():
-    if st.session_state["pwd_login_51"] == st.secrets["APP_PASSWORD"]:
+    if st.session_state["pwd_login_52"] == st.secrets["APP_PASSWORD"]:
         st.session_state["password_correct"] = True
-        del st.session_state["pwd_login_51"]
+        del st.session_state["pwd_login_52"]
     else: st.error("Password errata")
 
 if not check_password(): st.stop()
@@ -140,7 +149,6 @@ def get_oggi(): return datetime.datetime.now().strftime("%Y-%m-%d")
 
 def get_user_settings():
     df = get_data("diario")
-    # Default Targets
     settings = {"url_foto": "", "target_cal": 2500, "target_pro": 180, "target_carb": 300, "target_fat": 80}
     if not df.empty:
         rows = df[df['tipo'] == 'settings']
@@ -150,13 +158,13 @@ def get_user_settings():
     return settings
 
 # ==========================================
-# 📱 SIDEBAR: TARGET & PROFILO
+# 📱 SIDEBAR
 # ==========================================
 user_settings = get_user_settings()
 
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=60)
-    st.markdown("### Fit Tracker v5.1")
+    st.markdown("### Fit Tracker v5.2")
     
     st.markdown("---")
     st.markdown("**🎯 I tuoi Obiettivi**")
@@ -255,7 +263,7 @@ with tab1:
                     curr_peso = f"{d['peso']} kg"
                 except: pass
 
-    # KPI ROW (Con Target Dinamici)
+    # KPI ROW
     TC = user_settings['target_cal']
     TP = user_settings['target_pro']
     
@@ -275,7 +283,7 @@ with tab1:
     with k5:
         with st.container(): st.metric("Peso", curr_peso)
 
-    # GRAFICI & STATISTICHE
+    # GRAFICI
     cg1, cg2 = st.columns([2, 1])
     
     with cg1:
@@ -291,7 +299,7 @@ with tab1:
 
     with cg2:
         with st.container():
-            st.subheader("📊 Bilanciamento")
+            st.subheader("📊 Ripartizione Macro")
             if cal > 0:
                 s = pd.DataFrame({"M":["P","C","F"], "V":[pro*4,carb*4,fat*9]})
                 c = alt.Chart(s).encode(theta=alt.Theta("V",stack=True), color=alt.Color("M", scale=alt.Scale(range=['#0051FF','#FFC107','#FF4B4B'])))
@@ -362,7 +370,6 @@ with tab2:
                 
                 fac = gr/100
                 m1,m2,m3,m4=st.columns(4)
-                # CHIAVI UNICHE PER EVITARE ERRORI
                 k=m1.number_input("K",float(vk*fac),key="fk_in"); p=m2.number_input("P",float(vp*fac),key="fp_in"); c=m3.number_input("C",float(vc*fac),key="fc_in"); f=m4.number_input("F",float(vf*fac),key="ff_in")
                 
                 if st.button("Mangia", type="primary", use_container_width=True, key="btn_eat"):
@@ -427,12 +434,20 @@ with tab3:
 
 # --- TAB 4: STORICO MISURE ---
 with tab4:
-    if misure_list: st.table(pd.DataFrame(misure_list))
+    st.subheader("📉 Storico Peso")
+    df = get_data("diario")
+    ml = []
+    if not df.empty:
+        for _,r in df.iterrows():
+            if r['tipo']=='misure':
+                try: ml.append({"Data":r['data'],"Peso":json.loads(r['dettaglio_json'])['peso']})
+                except:pass
+    if ml: 
+        st.line_chart(pd.DataFrame(ml).set_index("Data"), color="#0051FF")
     else: st.info("Nessun dato.")
     
     with st.expander("Misure Complete"):
         c1,c2 = st.columns(2)
-        # CHIAVI AGGIORNATE PER EVITARE CONFLITTI CON TAB 2
         p=c1.number_input("Peso", key="ms_p"); a=c2.number_input("Altezza", key="ms_a")
         c3,c4,c5 = st.columns(3)
         co=c3.number_input("Collo", key="ms_co"); vi=c4.number_input("Vita", key="ms_vi"); fi=c5.number_input("Fianchi", key="ms_fi")
