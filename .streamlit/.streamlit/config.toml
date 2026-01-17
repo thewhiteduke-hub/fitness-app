@@ -1,6 +1,7 @@
 [theme]
-primaryColor = "#0051FF"   # Blu Elettrico acceso
-backgroundColor = "#FFFFFF" # Bianco assoluto
-secondaryBackgroundColor = "#F0F2F6" # Grigio chiarissimo per le schede
-textColor = "#000000"       # Testo nero
+base = "light"
+primaryColor = "#0051FF"
+backgroundColor = "#F8F9FB"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#1f1f1f"
 font = "sans serif"
