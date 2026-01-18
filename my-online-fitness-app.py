@@ -179,7 +179,8 @@ with st.sidebar:
 st.title(f"Bentornato, Atleta.")
 st.caption(f"📅 Data: {get_oggi()}")
 
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico"])
+# Modifica questa riga nel tuo codice:
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
 # --- DASHBOARD ---
 with tab1:
@@ -368,3 +369,70 @@ with tab4:
         co=c3.number_input("Collo", key="ms_co"); vi=c4.number_input("Vita", key="ms_vi"); fi=c5.number_input("Fianchi", key="ms_fi")
         if st.button("Salva", key="fs"):
             add_riga_diario("misure", {"peso":p,"alt":a,"collo":co,"vita":vi,"fianchi":fi}); st.success("OK")
+
+# --- TAB 5: CALISTHENICS ---
+with tab5:
+    st.subheader("🤸 Skills & Esercizi")
+    
+    # MODULO DI INSERIMENTO
+    with st.container():
+        with st.expander("➕ Aggiungi Nuova Skill / Foto", expanded=True):
+            with st.form("form_calisthenics"):
+                c1, c2 = st.columns([2, 1])
+                nome_skill = c1.text_input("Nome Esercizio (es. Front Lever, Planche)")
+                url_img = c2.text_input("Link Foto (.jpg/.png)")
+                descrizione = st.text_area("Descrizione, Note o Progressione")
+                
+                if st.form_submit_button("Salva nel Diario"):
+                    if nome_skill:
+                        add_riga_diario("calisthenics", {
+                            "nome": nome_skill,
+                            "desc": descrizione,
+                            "url": url_img
+                        })
+                        st.success("Skill salvata!")
+                        st.rerun()
+                    else:
+                        st.error("Inserisci almeno il nome.")
+
+    st.divider()
+    
+    # GALLERIA VISUALE
+    df = get_data("diario")
+    skills_list = []
+    
+    # Recuperiamo solo i dati di tipo 'calisthenics'
+    if not df.empty:
+        for idx, row in df.iterrows():
+            if row['tipo'] == 'calisthenics':
+                try:
+                    d = json.loads(row['dettaglio_json'])
+                    d['idx'] = idx
+                    d['data_ins'] = row['data']
+                    skills_list.append(d)
+                except: pass
+    
+    if skills_list:
+        # Mostriamo dall'ultimo inserito al primo
+        for skill in reversed(skills_list):
+            with st.container():
+                col_img, col_txt = st.columns([1, 3])
+                
+                with col_img:
+                    if skill.get('url'):
+                        try: st.image(skill['url'], use_container_width=True)
+                        except: st.caption("🚫 Link immagine rotto")
+                    else:
+                        st.info("No Foto")
+                
+                with col_txt:
+                    c_head, c_del = st.columns([5, 1])
+                    c_head.markdown(f"### {skill['nome']}")
+                    if c_del.button("🗑️", key=f"del_cali_{skill['idx']}"):
+                        delete_riga(skill['idx'])
+                        st.rerun()
+                    
+                    st.caption(f"📅 Inserito il: {skill['data_ins']}")
+                    st.write(skill['desc'])
+    else:
+        st.info("Nessuna skill registrata. Aggiungi il tuo primo esercizio sopra!")
