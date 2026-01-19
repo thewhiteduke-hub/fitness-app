@@ -277,8 +277,7 @@ with tab1:
         else: st.info("Riposo.")
 
 # --- ALIMENTAZIONE ---
-# --- TAB 2: ALIMENTAZIONE (CON DOPPIO DATABASE) ---
-# --- TAB 2: ALIMENTAZIONE (CON DESCRIZIONE INTEGRATORI) ---
+# --- TAB 2: ALIMENTAZIONE (AUTOFIL + DESCRIZIONE) ---
 with tab2:
     c_in, c_db = st.columns([2,1])
     
@@ -299,43 +298,49 @@ with tab2:
             if cat == "Integrazione":
                 sel_i = st.selectbox("Cerca Integratore", ["-- Manuale --"] + nomi_int, key="search_int")
                 
-                # Variabili default
-                v_ni = ""; v_ti = 0; v_desc = ""
+                # Variabili default (se Manuale)
+                v_ni = ""; v_ti = 0; v_desc = ""; v_qta = 0.0
                 unit_k=0.0; unit_p=0.0; unit_c=0.0; unit_f=0.0
                 
-                # Precompilazione da DB
+                # LOGICA DI AUTOCOMPILAZIONE
                 if sel_i != "-- Manuale --" and not df_int.empty:
+                    # Trova la riga corrispondente
                     row = df_int[df_int['nome'] == sel_i].iloc[0]
+                    
                     v_ni = row['nome']
-                    v_desc = row.get('descrizione', '') # Recupera descrizione se esiste
+                    v_desc = row.get('descrizione', '') # Recupera descrizione se c'è
+                    v_qta = 1.0 # <--- Qta predefinita a 1 se selezionato da DB
                     
                     map_tipo = {"g": 0, "cps": 1, "mg": 2}
+                    # Gestione robusta se il tipo non fosse salvato correttamente
                     v_ti = map_tipo.get(row.get('tipo', 'g'), 0)
+                    
                     unit_k, unit_p, unit_c, unit_f = row['kcal'], row['pro'], row['carb'], row['fat']
 
+                # Form
                 tip = st.radio("Formato", ["Polvere (g)","Capsule (pz)","Mg"], index=v_ti, horizontal=True, key="i_rad")
                 u = "g" if "Polvere" in tip else ("cps" if "Capsule" in tip else "mg")
                 
                 c1,c2 = st.columns([2,1])
                 nom = c1.text_input("Nome", v_ni, key="i_nm")
-                q = c2.number_input(f"Qta ({u})", 0.0, step=1.0, key="i_q")
+                # Qui usiamo v_qta che sarà 1.0 se preso da DB, o 0.0 se manuale
+                q = c2.number_input(f"Qta ({u})", value=float(v_qta), step=1.0, key="i_q")
                 
-                # NUOVO CAMPO DESCRIZIONE (Precompilato se esiste nel DB)
+                # Campo Descrizione Autocompilato
                 desc = st.text_input("A cosa serve / Note", v_desc, key="i_desc_field", placeholder="es. Energia pre-workout")
                 
-                # Calcolo Macro
+                # Calcolo Macro in tempo reale
                 val_k = unit_k * q if sel_i != "-- Manuale --" else 0.0
                 val_p = unit_p * q if sel_i != "-- Manuale --" else 0.0
                 val_c = unit_c * q if sel_i != "-- Manuale --" else 0.0
                 val_f = unit_f * q if sel_i != "-- Manuale --" else 0.0
 
-                with st.expander("Macro Totali"):
+                with st.expander("Macro Totali (Calcolati)"):
                     k=st.number_input("K", float(val_k), key="ik"); p=st.number_input("P", float(val_p), key="ip")
                     c=st.number_input("C", float(val_c), key="ic"); f=st.number_input("F", float(val_f), key="if")
                 
                 if st.button("Aggiungi", type="primary", use_container_width=True, key="bi"):
                     if nom: 
-                        # Salviamo anche la descrizione nel diario giornaliero
                         add_riga_diario("pasto",{"pasto":cat,"nome":nom,"desc":desc,"gr":q,"unita":u,"cal":k,"pro":p,"carb":c,"fat":f})
                         st.success("OK"); st.rerun()
             
@@ -374,10 +379,10 @@ with tab2:
                 st.info("Salva valori per 1 dose/grammo")
                 with st.form("dbi"):
                     ni=st.text_input("Nome", key="dbi_n")
-                    # NUOVO CAMPO DESCRIZIONE NEL DB
+                    # Campo Descrizione da salvare nel DB
                     di=st.text_input("Descrizione (es. Post-Workout)", key="dbi_d")
                     
-                    ti_sel = st.radio("Tipo", ["Polvere (g)", "Capsula (cps)", "Mg"], key="dbi_t")
+                    ti_sel = st.radio("Tipo", ["Polvere (g)", "Capsule (cps)", "Mg"], key="dbi_t")
                     ti_val = "g" if "Polvere" in ti_sel else ("cps" if "Capsula" in ti_sel else "mg")
                     c1,c2=st.columns(2)
                     ki=c1.number_input("Kcal x 1", key="dbi_k"); pi=c2.number_input("Pro x 1", key="dbi_p")
