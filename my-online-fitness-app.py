@@ -7,39 +7,75 @@ import altair as alt
 import google.generativeai as genai
 
 # ==========================================
-# 🎨 UI/UX DESIGN SYSTEM
+# 🎨 UI/UX DESIGN SYSTEM (FIX COLORI & INPUT)
 # ==========================================
 st.set_page_config(page_title="Fit Tracker Pro", page_icon="💪", layout="wide")
 
 st.markdown("""
 <style>
-    /* Global Styles */
-    .stApp { background-color: #F8F9FB; color: #1f1f1f; }
-    p, div, label, span, li, h1, h2, h3, h4, h5, h6 { color: #1f1f1f !important; }
-    h1, h2, h3, h4, h5, h6 { color: #0051FF !important; font-family: 'Helvetica Neue', sans-serif; }
-    
-    /* Cards */
-    div[data-testid="stContainer"] {
-        background-color: #ffffff; border-radius: 12px; padding: 20px;
-        border: 1px solid #e0e0e0; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    /* 1. Sfondo App */
+    .stApp {
+        background-color: #F8F9FB;
+        color: #1f1f1f;
     }
     
-    /* Sidebar */
-    section[data-testid="stSidebar"] { background-color: #ffffff; border-right: 1px solid #e0e0e0; }
+    /* 2. Testi generici */
+    p, div, label, span, li, h1, h2, h3, h4, h5, h6 {
+        color: #1f1f1f !important;
+    }
     
-    /* FIX MENU A TENDINA E INPUT (White Background) */
-    div[data-baseweb="select"] > div, .stTextInput input, .stNumberInput input, .stTextArea textarea {
+    /* 3. Card Bianche */
+    div[data-testid="stContainer"] {
+        background-color: #ffffff;
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    
+    /* 4. Sidebar */
+    section[data-testid="stSidebar"] {
+        background-color: #ffffff;
+        border-right: 1px solid #e0e0e0;
+    }
+
+    /* 5. FIX DEFINITIVO MENU A TENDINA E INPUT */
+    /* Forza sfondo BIANCO e testo NERO per tutti gli input */
+    .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
-        border: 1px solid #ccc;
+        border: 1px solid #ccc !important;
     }
-    div[data-baseweb="popover"], div[data-baseweb="menu"] { background-color: #ffffff !important; }
-    div[role="option"] { color: #000000 !important; background-color: #ffffff !important; }
-    div[role="option"]:hover { background-color: #f0f2f6 !important; }
     
-    /* Metrics */
-    div[data-testid="stMetricValue"] { color: #0051FF !important; font-size: 26px !important; }
-    div[data-testid="stMetricLabel"] { color: #666 !important; }
+    /* Forza il menu a discesa (il popover) a essere bianco */
+    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
+        background-color: #ffffff !important;
+    }
+    
+    /* Forza le opzioni dentro il menu a essere nere */
+    li[role="option"], div[role="option"] {
+        color: #000000 !important;
+        background-color: #ffffff !important;
+    }
+    
+    /* Effetto Hover sulle opzioni */
+    li[role="option"]:hover, div[role="option"]:hover, li[aria-selected="true"] {
+        background-color: #f0f2f6 !important;
+        color: #000000 !important;
+    }
+
+    /* Colore placeholder */
+    ::placeholder {
+        color: #666666 !important;
+        opacity: 1;
+    }
+
+    /* 6. Metriche */
+    div[data-testid="stMetricValue"] {
+        color: #0051FF !important;
+        font-size: 26px !important;
+    }
+    
     img { border-radius: 12px; }
 </style>
 """, unsafe_allow_html=True)
@@ -56,13 +92,13 @@ def check_password():
         st.write("")
         with st.container(border=True):
             st.title("🔒 Accesso")
-            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_71")
+            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_80")
     return False
 
 def password_entered():
-    if st.session_state["pwd_login_71"] == st.secrets["APP_PASSWORD"]:
+    if st.session_state["pwd_login_80"] == st.secrets["APP_PASSWORD"]:
         st.session_state["password_correct"] = True
-        del st.session_state["pwd_login_71"]
+        del st.session_state["pwd_login_80"]
     else: st.error("Password errata")
 
 if not check_password(): st.stop()
@@ -123,7 +159,7 @@ user_settings = get_user_settings()
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=60)
     st.markdown("### Fit Tracker Pro")
-    st.caption("v7.1 - Autofill Fix")
+    st.caption("v8.0 - Full Autofill")
     
     st.markdown("---")
     st.markdown("**🎯 Target**")
@@ -258,11 +294,10 @@ with tab1:
                     if c_btn.button("🗑️", key=f"d_w_{w['idx']}"): delete_riga(w['idx']); st.rerun()
         else: st.info("Riposo.")
 
-# --- ALIMENTAZIONE (FIXED: FORCED UPDATE) ---
+# --- ALIMENTAZIONE (FULL AUTOFILL) ---
 with tab2:
     c_in, c_db = st.columns([2,1])
     
-    # Carico DB
     df_cibi = get_data("cibi")
     nomi_cibi = df_cibi['nome'].tolist() if not df_cibi.empty else []
     
@@ -274,55 +309,45 @@ with tab2:
             st.subheader("Inserimento")
             cat = st.selectbox("Categoria", ["Colazione","Pranzo","Cena","Spuntino","Integrazione"], key="c_sel")
             
-            # === INTEGRATORI ===
+            # ==========================
+            # === INTEGRATORI LOGIC ===
+            # ==========================
             if cat == "Integrazione":
                 sel_i = st.selectbox("Cerca Integratore", ["-- Manuale --"] + nomi_int, key="search_int")
                 
-                # --- LOGICA DI UPDATE FORZATO ---
-                # Controlliamo se la selezione è cambiata rispetto all'ultimo run
+                # UPDATE FORZATO INTEGRATORI
                 if "last_sel_int" not in st.session_state: st.session_state.last_sel_int = None
-                
-                # Se l'utente ha cambiato selezione, FORZIAMO i valori nei campi
                 if sel_i != st.session_state.last_sel_int:
-                    st.session_state.last_sel_int = sel_i # Aggiorna tracker
-                    
+                    st.session_state.last_sel_int = sel_i
                     if sel_i != "-- Manuale --" and not df_int.empty:
                         try:
                             row = df_int[df_int['nome'] == sel_i].iloc[0]
-                            # Forziamo i valori nelle chiavi dei widget
                             st.session_state['i_nm'] = row['nome']
                             st.session_state['i_desc_f'] = row.get('descrizione', '')
                             st.session_state['i_q'] = 1.0 # Default a 1
                             
-                            # Salviamo info extra per calcolo macro (non visibili)
-                            st.session_state['temp_unit_vals'] = {
+                            st.session_state['temp_int_vals'] = {
                                 'k': row['kcal'], 'p': row['pro'], 'c': row['carb'], 'f': row['fat']
                             }
-                            # Mappa tipo
                             map_tipo = {"g": 0, "cps": 1, "mg": 2}
                             st.session_state['temp_tipo_idx'] = map_tipo.get(row.get('tipo', 'g'), 0)
                         except: pass
                     else:
-                        # Reset se torna a manuale
-                        st.session_state['temp_unit_vals'] = {'k':0,'p':0,'c':0,'f':0}
+                        st.session_state['temp_int_vals'] = {'k':0,'p':0,'c':0,'f':0}
                 
-                # Recuperiamo valori unitari (o 0 se manuale)
-                unit_vals = st.session_state.get('temp_unit_vals', {'k':0,'p':0,'c':0,'f':0})
-                
-                # Widget (Notare: usiamo key che corrispondono a session_state sopra)
-                # radio button index needs dynamic update too if we want perfection, but simpler is ok
+                unit_vals = st.session_state.get('temp_int_vals', {'k':0,'p':0,'c':0,'f':0})
                 tip_idx = st.session_state.get('temp_tipo_idx', 0)
+
+                # Widgets
                 tip = st.radio("Formato", ["Polvere (g)","Capsule (pz)","Mg"], index=tip_idx, horizontal=True, key="i_rad")
                 u = "g" if "Polvere" in tip else ("cps" if "Capsule" in tip else "mg")
                 
                 c1,c2 = st.columns([2,1])
-                # Qui l'input leggerà st.session_state['i_nm'] automaticamente
                 nom = c1.text_input("Nome", key="i_nm")
-                q = c2.number_input(f"Qta ({u})", step=1.0, key="i_q") # Valore default gestito da state
-                
+                q = c2.number_input(f"Qta ({u})", step=1.0, key="i_q")
                 desc = st.text_input("A cosa serve / Note", key="i_desc_f")
                 
-                # Calcolo Macro Live
+                # Calcolo
                 val_k = unit_vals['k'] * q
                 val_p = unit_vals['p'] * q
                 val_c = unit_vals['c'] * q
@@ -337,20 +362,46 @@ with tab2:
                         add_riga_diario("pasto",{"pasto":cat,"nome":nom,"desc":desc,"gr":q,"unita":u,"cal":k,"pro":p,"carb":c,"fat":f})
                         st.success("OK"); st.rerun()
             
-            # === CIBO NORMALE ===
+            # ==========================
+            # === CIBO NORMALE LOGIC ===
+            # ==========================
             else:
-                sel = st.selectbox("Cerca", ["-- Manuale --"]+nomi_cibi, key="f_sel")
-                vn,vk,vp,vc,vf = "",0,0,0,0
-                if sel!="-- Manuale --" and not df_cibi.empty:
-                    r = df_cibi[df_cibi['nome']==sel].iloc[0]
-                    vn=r['nome']; vk=r['kcal']; vp=r['pro']; vc=r['carb']; vf=r['fat']
+                sel = st.selectbox("Cerca Cibo", ["-- Manuale --"]+nomi_cibi, key="f_sel")
                 
+                # UPDATE FORZATO CIBI
+                if "last_sel_food" not in st.session_state: st.session_state.last_sel_food = None
+                
+                if sel != st.session_state.last_sel_food:
+                    st.session_state.last_sel_food = sel
+                    if sel != "-- Manuale --" and not df_cibi.empty:
+                        try:
+                            row = df_cibi[df_cibi['nome'] == sel].iloc[0]
+                            st.session_state['f_nm'] = row['nome']
+                            st.session_state['f_gr'] = 100.0 # Default a 100g
+                            
+                            st.session_state['temp_food_vals'] = {
+                                'k': row['kcal'], 'p': row['pro'], 'c': row['carb'], 'f': row['fat']
+                            }
+                        except: pass
+                    else:
+                        st.session_state['temp_food_vals'] = {'k':0,'p':0,'c':0,'f':0}
+                
+                food_vals = st.session_state.get('temp_food_vals', {'k':0,'p':0,'c':0,'f':0})
+
+                # Widgets
                 c1,c2 = st.columns([2,1])
-                nom = c1.text_input("Nome", vn, key="f_nm")
-                gr = c2.number_input("Grammi", 100.0, step=10.0, key="f_gr")
+                nom = c1.text_input("Nome", key="f_nm")
+                gr = c2.number_input("Grammi", step=10.0, key="f_gr")
+                
+                # Calcolo
                 fac = gr/100
+                val_k = food_vals['k'] * fac
+                val_p = food_vals['p'] * fac
+                val_c = food_vals['c'] * fac
+                val_f = food_vals['f'] * fac
+                
                 m1,m2,m3,m4=st.columns(4)
-                k=m1.number_input("K",float(vk*fac),key="fk"); p=m2.number_input("P",float(vp*fac),key="fp"); c=m3.number_input("C",float(vc*fac),key="fc"); f=m4.number_input("F",float(vf*fac),key="ff")
+                k=m1.number_input("K",float(val_k),key="fk"); p=m2.number_input("P",float(val_p),key="fp"); c=m3.number_input("C",float(val_c),key="fc"); f=m4.number_input("F",float(val_f),key="ff")
                 
                 if st.button("Mangia", type="primary", use_container_width=True, key="bf"):
                     if nom: add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f}); st.success("OK"); st.rerun()
@@ -358,10 +409,11 @@ with tab2:
     # --- DB MANAGER ---
     with c_db:
         st.subheader("💾 Gestione DB")
-        t_cibo, t_int = st.tabs(["Cibo (100g)", "Integratori"])
+        t_cibo, t_int = st.tabs(["Cibo", "Integratori"])
         
         with t_cibo:
             with st.container():
+                st.caption("Valori per 100g")
                 with st.form("dbf"):
                     n=st.text_input("Nome", key="dbn"); k=st.number_input("K 100g", key="dbk"); p=st.number_input("P", key="dbp"); c=st.number_input("C", key="dbc"); f=st.number_input("F", key="dbf")
                     if st.form_submit_button("Salva Cibo"):
