@@ -7,40 +7,39 @@ import altair as alt
 import google.generativeai as genai
 
 # ==========================================
-# 🎨 SETUP PRO (Il design è gestito da config.toml)
+# 🎨 UI/UX DESIGN SYSTEM
 # ==========================================
 st.set_page_config(page_title="Fit Tracker Pro", page_icon="💪", layout="wide")
 
-# CSS SOLO per Layout, Ombre e Bordi (I colori sono nel config.toml)
 st.markdown("""
 <style>
-    /* Card Design */
+    /* Global Styles */
+    .stApp { background-color: #F8F9FB; color: #1f1f1f; }
+    p, div, label, span, li, h1, h2, h3, h4, h5, h6 { color: #1f1f1f !important; }
+    h1, h2, h3, h4, h5, h6 { color: #0051FF !important; font-family: 'Helvetica Neue', sans-serif; }
+    
+    /* Cards */
     div[data-testid="stContainer"] {
-        border-radius: 12px;
-        padding: 20px;
-        border: 1px solid #e0e0e0;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        background-color: white;
+        background-color: #ffffff; border-radius: 12px; padding: 20px;
+        border: 1px solid #e0e0e0; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
     }
     
-    /* Sidebar Border */
-    section[data-testid="stSidebar"] {
-        border-right: 1px solid #e0e0e0;
-    }
+    /* Sidebar */
+    section[data-testid="stSidebar"] { background-color: #ffffff; border-right: 1px solid #e0e0e0; }
     
-    /* Titoli */
-    h1, h2, h3 {
-        font-family: 'Helvetica Neue', sans-serif;
-        font-weight: 700;
+    /* FIX MENU A TENDINA E INPUT (White Background) */
+    div[data-baseweb="select"] > div, .stTextInput input, .stNumberInput input, .stTextArea textarea {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #ccc;
     }
+    div[data-baseweb="popover"], div[data-baseweb="menu"] { background-color: #ffffff !important; }
+    div[role="option"] { color: #000000 !important; background-color: #ffffff !important; }
+    div[role="option"]:hover { background-color: #f0f2f6 !important; }
     
-    /* Metriche Grandi */
-    div[data-testid="stMetricValue"] {
-        font-size: 28px;
-        font-weight: 700;
-    }
-    
-    /* Immagini stondate */
+    /* Metrics */
+    div[data-testid="stMetricValue"] { color: #0051FF !important; font-size: 26px !important; }
+    div[data-testid="stMetricLabel"] { color: #666 !important; }
     img { border-radius: 12px; }
 </style>
 """, unsafe_allow_html=True)
@@ -57,13 +56,13 @@ def check_password():
         st.write("")
         with st.container(border=True):
             st.title("🔒 Accesso")
-            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_v6")
+            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_71")
     return False
 
 def password_entered():
-    if st.session_state["pwd_login_v6"] == st.secrets["APP_PASSWORD"]:
+    if st.session_state["pwd_login_71"] == st.secrets["APP_PASSWORD"]:
         st.session_state["password_correct"] = True
-        del st.session_state["pwd_login_v6"]
+        del st.session_state["pwd_login_71"]
     else: st.error("Password errata")
 
 if not check_password(): st.stop()
@@ -78,7 +77,7 @@ try:
 except: pass
 
 # ==========================================
-# 🔗 DATABASE
+# 🔗 DATABASE & FUNCTIONS
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
@@ -124,28 +123,26 @@ user_settings = get_user_settings()
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=60)
     st.markdown("### Fit Tracker Pro")
-    st.caption("v6.0 - Ultimate")
+    st.caption("v7.1 - Autofill Fix")
     
     st.markdown("---")
     st.markdown("**🎯 Target**")
     with st.expander("Modifica"):
-        with st.form("t_form"):
-            tc=st.number_input("Kcal", int(user_settings['target_cal']))
-            tp=st.number_input("Pro", int(user_settings['target_pro']))
-            tca=st.number_input("Carb", int(user_settings['target_carb']))
-            tf=st.number_input("Fat", int(user_settings['target_fat']))
+        with st.form("target_form"):
+            tc = st.number_input("Target Kcal", value=int(user_settings['target_cal']))
+            tp = st.number_input("Target Pro", value=int(user_settings['target_pro']))
+            tca = st.number_input("Target Carb", value=int(user_settings['target_carb']))
+            tf = st.number_input("Target Fat", value=int(user_settings['target_fat']))
             if st.form_submit_button("Salva"):
                 ns = user_settings.copy(); ns.update({"target_cal":tc,"target_pro":tp,"target_carb":tca,"target_fat":tf})
                 add_riga_diario("settings", ns); st.rerun()
 
     st.markdown("---")
-    st.markdown("**🏆 Vision**")
     if user_settings['url_foto']:
         try: st.image(user_settings['url_foto'], use_container_width=True)
         except: st.error("Link rotto")
-    else: st.info("No foto")
     
-    with st.expander("📸 Cambia"):
+    with st.expander("📸 Cambia Foto"):
         nu = st.text_input("Link Foto", key="s_url")
         if st.button("Salva", key="s_btn"):
             if nu:
@@ -153,17 +150,14 @@ with st.sidebar:
                 add_riga_diario("settings", ns); st.rerun()
 
     st.markdown("---")
-    st.markdown("**⚖️ Peso Rapido**")
-    w_fast = st.number_input("Peso (kg)", 0.0, format="%.1f", key="side_w_f")
+    w_fast = st.number_input("Peso Rapido (kg)", 0.0, format="%.1f", key="side_w_f")
     if st.button("Salva Peso", key="side_btn_w"):
         if w_fast > 0:
             add_riga_diario("misure", {"peso": w_fast})
             st.toast("Salvato!"); st.rerun()
 
     st.markdown("---")
-    st.markdown("**🤖 Coach**")
-    if "chat" not in st.session_state: st.session_state.chat = []
-    q_ai = st.text_input("Chiedi...", key="s_ai")
+    q_ai = st.text_input("Coach AI...", key="s_ai")
     if st.button("Invia", key="s_aibtn"):
         st.session_state.chat.append({"role":"user","txt":q_ai})
         ans="Errore AI"; 
@@ -171,6 +165,7 @@ with st.sidebar:
             try: ans=model.generate_content(f"Sei un PT. Rispondi: {q_ai}").text
             except: pass
         st.session_state.chat.append({"role":"assistant","txt":ans}); st.rerun()
+    if "chat" not in st.session_state: st.session_state.chat = []
     if st.session_state.chat: st.info(st.session_state.chat[-1]['txt'])
 
 # ==========================================
@@ -179,7 +174,6 @@ with st.sidebar:
 st.title(f"Bentornato, Atleta.")
 st.caption(f"📅 Data: {get_oggi()}")
 
-# Modifica questa riga nel tuo codice:
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
 # --- DASHBOARD ---
@@ -213,45 +207,33 @@ with tab1:
                     curr_peso = f"{d['peso']} kg"
                 except: pass
 
-    # KPI
     TC=user_settings['target_cal']; TP=user_settings['target_pro']
     k1,k2,k3,k4,k5 = st.columns(5)
-    with k1:
-        with st.container():
-            st.metric("Kcal", int(cal), f"Rim: {int(TC-cal)}")
-            st.progress(min(cal/TC, 1.0) if TC>0 else 0)
-    with k2:
-        with st.container(): st.metric("Pro", f"{int(pro)}g", f"Target: {TP}g")
-    with k3:
-        with st.container(): st.metric("Carb", f"{int(carb)}g")
-    with k4:
-        with st.container(): st.metric("Fat", f"{int(fat)}g")
-    with k5:
-        with st.container(): st.metric("Peso", curr_peso)
+    with k1: st.metric("Kcal", int(cal), f"Rim: {int(TC-cal)}"); st.progress(min(cal/TC, 1.0) if TC>0 else 0)
+    with k2: st.metric("Pro", f"{int(pro)}g", f"Target: {TP}g"); st.progress(min(pro/TP, 1.0) if TP>0 else 0)
+    with k3: st.metric("Carb", f"{int(carb)}g")
+    with k4: st.metric("Fat", f"{int(fat)}g")
+    with k5: st.metric("Peso", curr_peso)
 
-    # GRAFICI
     cg1, cg2 = st.columns([2, 1])
     with cg1:
-        with st.container():
-            st.subheader("📉 Andamento Peso")
-            if misure_list:
-                chart = alt.Chart(pd.DataFrame(misure_list)).mark_area(
-                    line={'color':'#0051FF'},
-                    color=alt.Gradient(gradient='linear', stops=[alt.GradientStop(color='#0051FF', offset=0), alt.GradientStop(color='white', offset=1)], x1=1, x2=1, y1=1, y2=0)
-                ).encode(x='Data:T', y=alt.Y('Peso:Q', scale=alt.Scale(zero=False))).properties(height=250)
-                st.altair_chart(chart, use_container_width=True)
-            else: st.info("Nessun dato peso.")
+        st.subheader("📉 Andamento Peso")
+        if misure_list:
+            chart = alt.Chart(pd.DataFrame(misure_list)).mark_area(
+                line={'color':'#0051FF'},
+                color=alt.Gradient(gradient='linear', stops=[alt.GradientStop(color='#0051FF', offset=0), alt.GradientStop(color='white', offset=1)], x1=1, x2=1, y1=1, y2=0)
+            ).encode(x='Data:T', y=alt.Y('Peso:Q', scale=alt.Scale(zero=False))).properties(height=250)
+            st.altair_chart(chart, use_container_width=True)
+        else: st.info("Nessun dato peso.")
 
     with cg2:
-        with st.container():
-            st.subheader("📊 Ripartizione Macro") # Titolo corretto
-            if cal>0:
-                s = pd.DataFrame({"M":["P","C","F"], "V":[pro*4,carb*4,fat*9]})
-                c = alt.Chart(s).encode(theta=alt.Theta("V",stack=True), color=alt.Color("M", scale=alt.Scale(range=['#0051FF','#FFC107','#FF4B4B'])))
-                st.altair_chart(c.mark_arc(innerRadius=60), use_container_width=True)
-            else: st.caption("Nessun dato.")
+        st.subheader("📊 Ripartizione Macro")
+        if cal>0:
+            s = pd.DataFrame({"M":["P","C","F"], "V":[pro*4,carb*4,fat*9]})
+            c = alt.Chart(s).encode(theta=alt.Theta("V",stack=True), color=alt.Color("M", scale=alt.Scale(range=['#0051FF','#FFC107','#FF4B4B'])))
+            st.altair_chart(c.mark_arc(innerRadius=60), use_container_width=True)
+        else: st.caption("Nessun dato.")
 
-    # LISTE
     cl1, cl2 = st.columns(2)
     with cl1:
         st.subheader("🍎 Pasti")
@@ -276,19 +258,17 @@ with tab1:
                     if c_btn.button("🗑️", key=f"d_w_{w['idx']}"): delete_riga(w['idx']); st.rerun()
         else: st.info("Riposo.")
 
-# --- ALIMENTAZIONE ---
-# --- TAB 2: ALIMENTAZIONE (AUTOFIL + DESCRIZIONE) ---
+# --- ALIMENTAZIONE (FIXED: FORCED UPDATE) ---
 with tab2:
     c_in, c_db = st.columns([2,1])
     
-    # Carichiamo i DB
+    # Carico DB
     df_cibi = get_data("cibi")
     nomi_cibi = df_cibi['nome'].tolist() if not df_cibi.empty else []
     
     df_int = get_data("integratori")
     nomi_int = df_int['nome'].tolist() if not df_int.empty else []
 
-    # --- COLONNA SINISTRA: INSERIMENTO NEL DIARIO ---
     with c_in:
         with st.container():
             st.subheader("Inserimento")
@@ -298,44 +278,57 @@ with tab2:
             if cat == "Integrazione":
                 sel_i = st.selectbox("Cerca Integratore", ["-- Manuale --"] + nomi_int, key="search_int")
                 
-                # Variabili default (se Manuale)
-                v_ni = ""; v_ti = 0; v_desc = ""; v_qta = 0.0
-                unit_k=0.0; unit_p=0.0; unit_c=0.0; unit_f=0.0
+                # --- LOGICA DI UPDATE FORZATO ---
+                # Controlliamo se la selezione è cambiata rispetto all'ultimo run
+                if "last_sel_int" not in st.session_state: st.session_state.last_sel_int = None
                 
-                # LOGICA DI AUTOCOMPILAZIONE
-                if sel_i != "-- Manuale --" and not df_int.empty:
-                    # Trova la riga corrispondente
-                    row = df_int[df_int['nome'] == sel_i].iloc[0]
+                # Se l'utente ha cambiato selezione, FORZIAMO i valori nei campi
+                if sel_i != st.session_state.last_sel_int:
+                    st.session_state.last_sel_int = sel_i # Aggiorna tracker
                     
-                    v_ni = row['nome']
-                    v_desc = row.get('descrizione', '') # Recupera descrizione se c'è
-                    v_qta = 1.0 # <--- Qta predefinita a 1 se selezionato da DB
-                    
-                    map_tipo = {"g": 0, "cps": 1, "mg": 2}
-                    # Gestione robusta se il tipo non fosse salvato correttamente
-                    v_ti = map_tipo.get(row.get('tipo', 'g'), 0)
-                    
-                    unit_k, unit_p, unit_c, unit_f = row['kcal'], row['pro'], row['carb'], row['fat']
-
-                # Form
-                tip = st.radio("Formato", ["Polvere (g)","Capsule (pz)","Mg"], index=v_ti, horizontal=True, key="i_rad")
+                    if sel_i != "-- Manuale --" and not df_int.empty:
+                        try:
+                            row = df_int[df_int['nome'] == sel_i].iloc[0]
+                            # Forziamo i valori nelle chiavi dei widget
+                            st.session_state['i_nm'] = row['nome']
+                            st.session_state['i_desc_f'] = row.get('descrizione', '')
+                            st.session_state['i_q'] = 1.0 # Default a 1
+                            
+                            # Salviamo info extra per calcolo macro (non visibili)
+                            st.session_state['temp_unit_vals'] = {
+                                'k': row['kcal'], 'p': row['pro'], 'c': row['carb'], 'f': row['fat']
+                            }
+                            # Mappa tipo
+                            map_tipo = {"g": 0, "cps": 1, "mg": 2}
+                            st.session_state['temp_tipo_idx'] = map_tipo.get(row.get('tipo', 'g'), 0)
+                        except: pass
+                    else:
+                        # Reset se torna a manuale
+                        st.session_state['temp_unit_vals'] = {'k':0,'p':0,'c':0,'f':0}
+                
+                # Recuperiamo valori unitari (o 0 se manuale)
+                unit_vals = st.session_state.get('temp_unit_vals', {'k':0,'p':0,'c':0,'f':0})
+                
+                # Widget (Notare: usiamo key che corrispondono a session_state sopra)
+                # radio button index needs dynamic update too if we want perfection, but simpler is ok
+                tip_idx = st.session_state.get('temp_tipo_idx', 0)
+                tip = st.radio("Formato", ["Polvere (g)","Capsule (pz)","Mg"], index=tip_idx, horizontal=True, key="i_rad")
                 u = "g" if "Polvere" in tip else ("cps" if "Capsule" in tip else "mg")
                 
                 c1,c2 = st.columns([2,1])
-                nom = c1.text_input("Nome", v_ni, key="i_nm")
-                # Qui usiamo v_qta che sarà 1.0 se preso da DB, o 0.0 se manuale
-                q = c2.number_input(f"Qta ({u})", value=float(v_qta), step=1.0, key="i_q")
+                # Qui l'input leggerà st.session_state['i_nm'] automaticamente
+                nom = c1.text_input("Nome", key="i_nm")
+                q = c2.number_input(f"Qta ({u})", step=1.0, key="i_q") # Valore default gestito da state
                 
-                # Campo Descrizione Autocompilato
-                desc = st.text_input("A cosa serve / Note", v_desc, key="i_desc_field", placeholder="es. Energia pre-workout")
+                desc = st.text_input("A cosa serve / Note", key="i_desc_f")
                 
-                # Calcolo Macro in tempo reale
-                val_k = unit_k * q if sel_i != "-- Manuale --" else 0.0
-                val_p = unit_p * q if sel_i != "-- Manuale --" else 0.0
-                val_c = unit_c * q if sel_i != "-- Manuale --" else 0.0
-                val_f = unit_f * q if sel_i != "-- Manuale --" else 0.0
+                # Calcolo Macro Live
+                val_k = unit_vals['k'] * q
+                val_p = unit_vals['p'] * q
+                val_c = unit_vals['c'] * q
+                val_f = unit_vals['f'] * q
 
-                with st.expander("Macro Totali (Calcolati)"):
+                with st.expander("Macro Totali"):
                     k=st.number_input("K", float(val_k), key="ik"); p=st.number_input("P", float(val_p), key="ip")
                     c=st.number_input("C", float(val_c), key="ic"); f=st.number_input("F", float(val_f), key="if")
                 
@@ -362,7 +355,7 @@ with tab2:
                 if st.button("Mangia", type="primary", use_container_width=True, key="bf"):
                     if nom: add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f}); st.success("OK"); st.rerun()
 
-    # --- COLONNA DESTRA: GESTIONE DB ---
+    # --- DB MANAGER ---
     with c_db:
         st.subheader("💾 Gestione DB")
         t_cibo, t_int = st.tabs(["Cibo (100g)", "Integratori"])
@@ -376,26 +369,24 @@ with tab2:
         
         with t_int:
             with st.container():
-                st.info("Salva valori per 1 dose/grammo")
+                st.caption("Valori per 1 dose/grammo")
                 with st.form("dbi"):
                     ni=st.text_input("Nome", key="dbi_n")
-                    # Campo Descrizione da salvare nel DB
-                    di=st.text_input("Descrizione (es. Post-Workout)", key="dbi_d")
-                    
+                    di=st.text_input("Descrizione", key="dbi_d")
                     ti_sel = st.radio("Tipo", ["Polvere (g)", "Capsula (cps)", "Mg"], key="dbi_t")
                     ti_val = "g" if "Polvere" in ti_sel else ("cps" if "Capsula" in ti_sel else "mg")
                     c1,c2=st.columns(2)
-                    ki=c1.number_input("Kcal x 1", key="dbi_k"); pi=c2.number_input("Pro x 1", key="dbi_p")
-                    ci=c1.number_input("Carb x 1", key="dbi_c"); fi=c2.number_input("Fat x 1", key="dbi_f")
+                    ki=c1.number_input("K", key="dbi_k"); pi=c2.number_input("P", key="dbi_p")
+                    ci=c1.number_input("C", key="dbi_c"); fi=c2.number_input("F", key="dbi_f")
                     
                     if st.form_submit_button("Salva Integratore"):
                         if ni:
-                            # Salviamo anche la colonna 'descrizione'
                             save_data("integratori", pd.concat([df_int, pd.DataFrame([{
                                 "nome":ni, "tipo":ti_val, "descrizione":di,
                                 "kcal":ki, "pro":pi, "carb":ci, "fat":fi
                             }])], ignore_index=True))
                             st.rerun()
+
 # --- WORKOUT ---
 with tab3:
     if 'sess_w' not in st.session_state: st.session_state['sess_w'] = []
@@ -446,69 +437,44 @@ with tab4:
         if st.button("Salva", key="fs"):
             add_riga_diario("misure", {"peso":p,"alt":a,"collo":co,"vita":vi,"fianchi":fi}); st.success("OK")
 
-# --- TAB 5: CALISTHENICS ---
+# --- CALISTHENICS ---
 with tab5:
-    st.subheader("🤸 Skills & Esercizi")
-    
-    # MODULO DI INSERIMENTO
+    st.subheader("🤸 Skills")
     with st.container():
-        with st.expander("➕ Aggiungi Nuova Skill / Foto", expanded=True):
-            with st.form("form_calisthenics"):
+        with st.expander("➕ Nuova Skill", expanded=True):
+            with st.form("f_cali"):
                 c1, c2 = st.columns([2, 1])
-                nome_skill = c1.text_input("Nome Esercizio (es. Front Lever, Planche)")
-                url_img = c2.text_input("Link Foto (.jpg/.png)")
-                descrizione = st.text_area("Descrizione, Note o Progressione")
-                
-                if st.form_submit_button("Salva nel Diario"):
-                    if nome_skill:
-                        add_riga_diario("calisthenics", {
-                            "nome": nome_skill,
-                            "desc": descrizione,
-                            "url": url_img
-                        })
-                        st.success("Skill salvata!")
-                        st.rerun()
-                    else:
-                        st.error("Inserisci almeno il nome.")
-
+                n_sk = c1.text_input("Skill (es. Front Lever)")
+                u_sk = c2.text_input("Link Foto")
+                d_sk = st.text_area("Note / Progressione")
+                if st.form_submit_button("Salva"):
+                    if n_sk:
+                        add_riga_diario("calisthenics", {"nome": n_sk, "desc": d_sk, "url": u_sk})
+                        st.success("OK"); st.rerun()
+    
     st.divider()
-    
-    # GALLERIA VISUALE
-    df = get_data("diario")
-    skills_list = []
-    
-    # Recuperiamo solo i dati di tipo 'calisthenics'
+    skills = []
     if not df.empty:
-        for idx, row in df.iterrows():
-            if row['tipo'] == 'calisthenics':
+        for i, r in df.iterrows():
+            if r['tipo'] == 'calisthenics':
                 try:
-                    d = json.loads(row['dettaglio_json'])
-                    d['idx'] = idx
-                    d['data_ins'] = row['data']
-                    skills_list.append(d)
+                    d = json.loads(r['dettaglio_json']); d['idx'] = i; d['dt'] = r['data']
+                    skills.append(d)
                 except: pass
     
-    if skills_list:
-        # Mostriamo dall'ultimo inserito al primo
-        for skill in reversed(skills_list):
+    if skills:
+        for s in reversed(skills):
             with st.container():
-                col_img, col_txt = st.columns([1, 3])
-                
-                with col_img:
-                    if skill.get('url'):
-                        try: st.image(skill['url'], use_container_width=True)
-                        except: st.caption("🚫 Link immagine rotto")
-                    else:
-                        st.info("No Foto")
-                
-                with col_txt:
-                    c_head, c_del = st.columns([5, 1])
-                    c_head.markdown(f"### {skill['nome']}")
-                    if c_del.button("🗑️", key=f"del_cali_{skill['idx']}"):
-                        delete_riga(skill['idx'])
-                        st.rerun()
-                    
-                    st.caption(f"📅 Inserito il: {skill['data_ins']}")
-                    st.write(skill['desc'])
-    else:
-        st.info("Nessuna skill registrata. Aggiungi il tuo primo esercizio sopra!")
+                ci, ct = st.columns([1, 3])
+                with ci:
+                    if s.get('url'): 
+                        try: st.image(s['url'], use_container_width=True)
+                        except: st.caption("No img")
+                    else: st.info("No img")
+                with ct:
+                    c_h, c_d = st.columns([5, 1])
+                    c_h.markdown(f"### {s['nome']}")
+                    if c_d.button("🗑️", key=f"dc_{s['idx']}"): delete_riga(s['idx']); st.rerun()
+                    st.caption(f"📅 {s['dt']}")
+                    st.write(s['desc'])
+    else: st.info("Nessuna skill.")
