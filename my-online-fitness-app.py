@@ -277,48 +277,136 @@ with tab1:
         else: st.info("Riposo.")
 
 # --- ALIMENTAZIONE ---
+# --- TAB 2: ALIMENTAZIONE (CON DOPPIO DATABASE) ---
 with tab2:
     c_in, c_db = st.columns([2,1])
+    
+    # Carichiamo entrambi i database
     df_cibi = get_data("cibi")
-    nomi = df_cibi['nome'].tolist() if not df_cibi.empty else []
+    nomi_cibi = df_cibi['nome'].tolist() if not df_cibi.empty else []
+    
+    df_int = get_data("integratori")
+    nomi_int = df_int['nome'].tolist() if not df_int.empty else []
 
+    # --- COLONNA SINISTRA: INSERIMENTO ---
     with c_in:
         with st.container():
             st.subheader("Inserimento")
             cat = st.selectbox("Categoria", ["Colazione","Pranzo","Cena","Spuntino","Integrazione"], key="c_sel")
             
+            # === LOGICA INTEGRATORI ===
             if cat == "Integrazione":
-                tip = st.radio("Tipo", ["Polvere (g)","Capsule (pz)","Mg"], horizontal=True, key="i_rad")
+                # Cerca nel DB Integratori
+                sel_i = st.selectbox("Cerca Integratore", ["-- Manuale --"] + nomi_int, key="search_int")
+                
+                # Valori di default
+                v_ni, v_ti, v_ki, v_pi, v_ci, v_fi = "", 0, 0.0, 0.0, 0.0, 0.0
+                
+                # Se selezionato dal DB, precompila
+                if sel_i != "-- Manuale --" and not df_int.empty:
+                    row = df_int[df_int['nome'] == sel_i].iloc[0]
+                    v_ni = row['nome']
+                    # Mappa il tipo salvato all'indice del radio button
+                    map_tipo = {"g": 0, "cps": 1, "mg": 2}
+                    v_ti = map_tipo.get(row['tipo'], 0)
+                    # I valori nel DB sono per 1 unità, li salviamo per il calcolo dopo
+                    unit_k, unit_p, unit_c, unit_f = row['kcal'], row['pro'], row['carb'], row['fat']
+                else:
+                    unit_k = unit_p = unit_c = unit_f = 0.0
+
+                tip = st.radio("Formato", ["Polvere (g)","Capsule (pz)","Mg"], index=v_ti, horizontal=True, key="i_rad")
                 u = "g" if "Polvere" in tip else ("cps" if "Capsule" in tip else "mg")
-                c1,c2=st.columns([2,1])
-                nom = c1.text_input("Nome", key="i_nm")
+                
+                c1,c2 = st.columns([2,1])
+                nom = c1.text_input("Nome", v_ni, key="i_nm")
                 q = c2.number_input(f"Qta ({u})", 0.0, step=1.0, key="i_q")
-                with st.expander("Macro"):
-                    k=st.number_input("K",0.0,key="ik"); p=st.number_input("P",0.0,key="ip"); c=st.number_input("C",0.0,key="ic"); f=st.number_input("F",0.0,key="if")
-                if st.button("Aggiungi", type="primary", use_container_width=True, key="bi"):
-                    if nom: add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":q,"unita":u,"cal":k,"pro":p,"carb":c,"fat":f}); st.success("OK"); st.rerun()
+                
+                # Calcolo automatico Macro (Se presi dal DB) o Manuale
+                val_k = unit_k * q if sel_i != "-- Manuale --" else 0.0
+                val_p = unit_p * q if sel_i != "-- Manuale --" else 0.0
+                val_c = unit_c * q if sel_i != "-- Manuale --" else 0.0
+                val_f = unit_f * q if sel_i != "-- Manuale --" else 0.0
+
+                with st.expander("Macro Totali (Calcolati o Manuali)"):
+                    k=st.number_input("Kcal", float(val_k), key="ik")
+                    p=st.number_input("Pro", float(val_p), key="ip")
+                    c=st.number_input("Carb", float(val_c), key="ic")
+                    f=st.number_input("Fat", float(val_f), key="if")
+                
+                if st.button("Aggiungi Integratore", type="primary", use_container_width=True, key="bi"):
+                    if nom: 
+                        add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":q,"unita":u,"cal":k,"pro":p,"carb":c,"fat":f})
+                        st.success("OK"); st.rerun()
+            
+            # === LOGICA CIBO NORMALE ===
             else:
-                sel = st.selectbox("Cerca", ["-- Manuale --"]+nomi, key="f_sel")
+                sel = st.selectbox("Cerca Cibo", ["-- Manuale --"]+nomi_cibi, key="f_sel")
                 vn,vk,vp,vc,vf = "",0,0,0,0
                 if sel!="-- Manuale --" and not df_cibi.empty:
                     r = df_cibi[df_cibi['nome']==sel].iloc[0]
                     vn=r['nome']; vk=r['kcal']; vp=r['pro']; vc=r['carb']; vf=r['fat']
+                
                 c1,c2 = st.columns([2,1])
                 nom = c1.text_input("Nome", vn, key="f_nm")
                 gr = c2.number_input("Grammi", 100.0, step=10.0, key="f_gr")
+                
                 fac = gr/100
                 m1,m2,m3,m4=st.columns(4)
-                k=m1.number_input("K",float(vk*fac),key="fk"); p=m2.number_input("P",float(vp*fac),key="fp"); c=m3.number_input("C",float(vc*fac),key="fc"); f=m4.number_input("F",float(vf*fac),key="ff")
+                k=m1.number_input("K",float(vk*fac),key="fk")
+                p=m2.number_input("P",float(vp*fac),key="fp")
+                c=m3.number_input("C",float(vc*fac),key="fc")
+                f=m4.number_input("F",float(vf*fac),key="ff")
+                
                 if st.button("Mangia", type="primary", use_container_width=True, key="bf"):
-                    if nom: add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f}); st.success("OK"); st.rerun()
+                    if nom: 
+                        add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f})
+                        st.success("OK"); st.rerun()
 
+    # --- COLONNA DESTRA: GESTIONE DB ---
     with c_db:
-        with st.container():
-            st.subheader("DB Cibi")
-            with st.form("dbf"):
-                n=st.text_input("Nome", key="dbn"); k=st.number_input("K 100g", key="dbk"); p=st.number_input("P", key="dbp"); c=st.number_input("C", key="dbc"); f=st.number_input("F", key="dbf")
-                if st.form_submit_button("Salva"):
-                    if n: save_data("cibi", pd.concat([df_cibi, pd.DataFrame([{"nome":n,"kcal":k,"pro":p,"carb":c,"fat":f}])], ignore_index=True)); st.rerun()
+        st.subheader("💾 Gestione Database")
+        
+        # Tabs per scegliere cosa salvare
+        tab_cibo, tab_int = st.tabs(["Cibo (100g)", "Integratori (1 dose)"])
+        
+        # 1. SALVA CIBO
+        with tab_cibo:
+            with st.container():
+                st.info("Valori per 100g")
+                with st.form("dbf"):
+                    n=st.text_input("Nome", key="dbn")
+                    k=st.number_input("Kcal", key="dbk"); p=st.number_input("Pro", key="dbp")
+                    c=st.number_input("Carb", key="dbc"); f=st.number_input("Fat", key="dbf")
+                    if st.form_submit_button("Salva Cibo"):
+                        if n: 
+                            save_data("cibi", pd.concat([df_cibi, pd.DataFrame([{"nome":n,"kcal":k,"pro":p,"carb":c,"fat":f}])], ignore_index=True))
+                            st.rerun()
+
+        # 2. SALVA INTEGRATORE
+        with tab_int:
+            with st.container():
+                st.info("Valori per 1g (polvere) o 1 cps")
+                with st.form("dbi"):
+                    ni=st.text_input("Nome (es. Creatina)", key="dbi_n")
+                    # Scelta tipo per salvare l'unità corretta nel DB
+                    ti_sel = st.radio("Tipo", ["Polvere (g)", "Capsula (cps)", "Mg"], key="dbi_t")
+                    ti_val = "g" if "Polvere" in ti_sel else ("cps" if "Capsula" in ti_sel else "mg")
+                    
+                    st.markdown("**Valori per 1 unità:**")
+                    c1,c2=st.columns(2)
+                    ki=c1.number_input("Kcal", 0.0, format="%.2f", key="dbi_k")
+                    pi=c2.number_input("Pro", 0.0, format="%.2f", key="dbi_p")
+                    ci=c1.number_input("Carb", 0.0, format="%.2f", key="dbi_c")
+                    fi=c2.number_input("Fat", 0.0, format="%.2f", key="dbi_f")
+                    
+                    if st.form_submit_button("Salva Integratore"):
+                        if ni:
+                            # Salviamo in un foglio nuovo chiamato "integratori"
+                            save_data("integratori", pd.concat([df_int, pd.DataFrame([{
+                                "nome":ni, "tipo":ti_val, 
+                                "kcal":ki, "pro":pi, "carb":ci, "fat":fi
+                            }])], ignore_index=True))
+                            st.rerun()
 
 # --- WORKOUT ---
 with tab3:
