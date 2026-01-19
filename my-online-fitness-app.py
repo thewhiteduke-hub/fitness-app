@@ -7,22 +7,24 @@ import altair as alt
 import google.generativeai as genai
 
 # ==========================================
-# 🎨 UI/UX DESIGN SYSTEM (V9.0 - CONTRAST & MATH FIX)
+# 🎨 UI/UX DESIGN SYSTEM (V10.0 - CSS NUCLEARE & LOGICA FIX)
 # ==========================================
 st.set_page_config(page_title="Fit Tracker Pro", page_icon="💪", layout="wide")
 
 st.markdown("""
 <style>
-    /* 1. Sfondo App e Testo Base */
+    /* 1. Reset Colori Base */
     .stApp {
         background-color: #F8F9FB;
         color: #1f1f1f;
     }
-    p, div, label, span, li, h1, h2, h3, h4, h5, h6 {
+    
+    /* 2. Testi */
+    h1, h2, h3, h4, h5, h6, p, div, span, label {
         color: #1f1f1f !important;
     }
     
-    /* 2. Card Bianche */
+    /* 3. Card */
     div[data-testid="stContainer"] {
         background-color: #ffffff;
         border-radius: 12px;
@@ -31,50 +33,51 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(0,0,0,0.05);
     }
     
-    /* 3. Sidebar */
+    /* 4. Sidebar */
     section[data-testid="stSidebar"] {
         background-color: #ffffff;
         border-right: 1px solid #e0e0e0;
     }
 
-    /* 4. FIX SUPER-AGGRESSIVO MENU A TENDINA E INPUT */
-    /* Forza sfondo BIANCO e testo NERO su tutti gli input */
-    .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
+    /* 5. FIX MENU A TENDINA (Override Totale) */
+    /* Box principale */
+    div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
         border: 1px solid #ccc !important;
     }
-    
-    /* Forza il menu a discesa (popover) */
-    div[data-baseweb="popover"] {
+    /* Testo dentro il box */
+    div[data-baseweb="select"] span {
+        color: #000000 !important;
+    }
+    /* Menu a discesa */
+    div[data-baseweb="popover"], div[data-baseweb="menu"], ul {
         background-color: #ffffff !important;
+    }
+    /* Le opzioni singole */
+    li[role="option"] {
+        color: #000000 !important; 
+        background-color: #ffffff !important;
+    }
+    div[role="option"] {
+        color: #000000 !important;
+    }
+    /* Hover */
+    li[role="option"]:hover, li[aria-selected="true"] {
+        background-color: #e6f0ff !important;
+        color: #000000 !important;
+    }
+
+    /* 6. Input Fields */
+    .stTextInput input, .stNumberInput input, .stTextArea textarea {
+        background-color: #ffffff !important;
+        color: #000000 !important;
         border: 1px solid #ccc !important;
     }
-    
-    /* Forza il menu interno */
-    div[data-baseweb="menu"], ul[role="listbox"] {
-        background-color: #ffffff !important;
-    }
-    
-    /* Opzioni del menu: Testo nero su sfondo bianco */
-    li[role="option"], div[role="option"] {
-        color: #000000 !important;
-        background-color: #ffffff !important;
-    }
-    
-    /* Hover: Sfondo grigio chiaro, testo nero */
-    li[role="option"]:hover, div[role="option"]:hover, li[aria-selected="true"] {
-        background-color: #f0f2f6 !important;
-        color: #000000 !important;
-    }
 
-    /* Placeholder */
-    ::placeholder { color: #666666 !important; opacity: 1; }
-
-    /* 5. Metriche */
+    /* 7. Metriche */
     div[data-testid="stMetricValue"] {
         color: #0051FF !important;
-        font-size: 26px !important;
     }
     
     img { border-radius: 12px; }
@@ -93,13 +96,13 @@ def check_password():
         st.write("")
         with st.container(border=True):
             st.title("🔒 Accesso")
-            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_90")
+            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_10")
     return False
 
 def password_entered():
-    if st.session_state["pwd_login_90"] == st.secrets["APP_PASSWORD"]:
+    if st.session_state["pwd_login_10"] == st.secrets["APP_PASSWORD"]:
         st.session_state["password_correct"] = True
-        del st.session_state["pwd_login_90"]
+        del st.session_state["pwd_login_10"]
     else: st.error("Password errata")
 
 if not check_password(): st.stop()
@@ -160,7 +163,7 @@ user_settings = get_user_settings()
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=60)
     st.markdown("### Fit Tracker Pro")
-    st.caption("v9.0 - Proportional Fix")
+    st.caption("v10.0 - Final Fix")
     
     st.markdown("---")
     st.markdown("**🎯 Target**")
@@ -221,7 +224,6 @@ with tab1:
     
     cal=pro=carb=fat=0
     pasti=[]; allenamenti=[]
-    
     if not df_oggi.empty:
         for i,r in df_oggi.iterrows():
             try:
@@ -316,7 +318,7 @@ with tab2:
             if cat == "Integrazione":
                 sel_i = st.selectbox("Cerca Integratore", ["-- Manuale --"] + nomi_int, key="search_int")
                 
-                # UPDATE FORZATO SE CAMBIA DROPDOWN
+                # TRIGGER: CAMBIO SELEZIONE
                 if "last_sel_int" not in st.session_state: st.session_state.last_sel_int = None
                 
                 if sel_i != st.session_state.last_sel_int:
@@ -349,19 +351,24 @@ with tab2:
                 
                 c1,c2 = st.columns([2,1])
                 nom = c1.text_input("Nome", key="i_nm")
-                q = c2.number_input(f"Qta ({u})", step=1.0, key="i_q") # Modificando Qta, Streamlit riesegue il codice
+                q = c2.number_input(f"Qta ({u})", step=1.0, key="i_q") 
                 desc = st.text_input("A cosa serve / Note", key="i_desc_f")
                 
-                # CALCOLO PROPORZIONALE LIVE
-                # Moltiplico i valori base salvati per la quantità attuale
+                # CALCOLO PROPORZIONALE LIVE E UPDATE STATO
                 val_k = base['k'] * q
                 val_p = base['p'] * q
                 val_c = base['c'] * q
                 val_f = base['f'] * q
+                
+                # IMPORTANTISSIMO: FORZO LO STATO DELLE CASELLE MACRO
+                st.session_state['ik'] = float(val_k)
+                st.session_state['ip'] = float(val_p)
+                st.session_state['ic'] = float(val_c)
+                st.session_state['if'] = float(val_f)
 
                 with st.expander("Macro Totali"):
-                    k=st.number_input("K", float(val_k), key="ik"); p=st.number_input("P", float(val_p), key="ip")
-                    c=st.number_input("C", float(val_c), key="ic"); f=st.number_input("F", float(val_f), key="if")
+                    k=st.number_input("K", key="ik"); p=st.number_input("P", key="ip")
+                    c=st.number_input("C", key="ic"); f=st.number_input("F", key="if")
                 
                 if st.button("Aggiungi", type="primary", use_container_width=True, key="bi"):
                     if nom: 
@@ -374,7 +381,7 @@ with tab2:
             else:
                 sel = st.selectbox("Cerca Cibo", ["-- Manuale --"]+nomi_cibi, key="f_sel")
                 
-                # UPDATE FORZATO SE CAMBIA DROPDOWN
+                # TRIGGER: CAMBIO SELEZIONE
                 if "last_sel_food" not in st.session_state: st.session_state.last_sel_food = None
                 
                 if sel != st.session_state.last_sel_food:
@@ -397,18 +404,23 @@ with tab2:
                 # Widgets
                 c1,c2 = st.columns([2,1])
                 nom = c1.text_input("Nome", key="f_nm")
-                gr = c2.number_input("Grammi", step=10.0, key="f_gr") # Modificando Grammi, riesegue
+                gr = c2.number_input("Grammi", step=10.0, key="f_gr")
                 
-                # CALCOLO PROPORZIONALE LIVE
-                # Formula: (Valore su 100g / 100) * Grammi Inseriti
+                # CALCOLO PROPORZIONALE LIVE E UPDATE STATO
                 fac = gr / 100
                 val_k = base_f['k'] * fac
                 val_p = base_f['p'] * fac
                 val_c = base_f['c'] * fac
                 val_f = base_f['f'] * fac
                 
+                # FORZO LO STATO MACRO
+                st.session_state['fk'] = float(val_k)
+                st.session_state['fp'] = float(val_p)
+                st.session_state['fc'] = float(val_c)
+                st.session_state['ff'] = float(val_f)
+                
                 m1,m2,m3,m4=st.columns(4)
-                k=m1.number_input("K",float(val_k),key="fk"); p=m2.number_input("P",float(val_p),key="fp"); c=m3.number_input("C",float(val_c),key="fc"); f=m4.number_input("F",float(val_f),key="ff")
+                k=m1.number_input("K",key="fk"); p=m2.number_input("P",key="fp"); c=m3.number_input("C",key="fc"); f=m4.number_input("F",key="ff")
                 
                 if st.button("Mangia", type="primary", use_container_width=True, key="bf"):
                     if nom: add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f}); st.success("OK"); st.rerun()
