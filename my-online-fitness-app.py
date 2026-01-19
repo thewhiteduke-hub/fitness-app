@@ -277,18 +277,16 @@ with tab1:
         else: st.info("Riposo.")
 
 # --- ALIMENTAZIONE ---
-# --- TAB 2: ALIMENTAZIONE (AUTOFIL + DESCRIZIONE) ---
 with tab2:
     c_in, c_db = st.columns([2,1])
     
-    # Carichiamo i DB
+    # Carico DB
     df_cibi = get_data("cibi")
     nomi_cibi = df_cibi['nome'].tolist() if not df_cibi.empty else []
     
     df_int = get_data("integratori")
     nomi_int = df_int['nome'].tolist() if not df_int.empty else []
 
-    # --- COLONNA SINISTRA: INSERIMENTO NEL DIARIO ---
     with c_in:
         with st.container():
             st.subheader("Inserimento")
@@ -298,44 +296,38 @@ with tab2:
             if cat == "Integrazione":
                 sel_i = st.selectbox("Cerca Integratore", ["-- Manuale --"] + nomi_int, key="search_int")
                 
-                # Variabili default (se Manuale)
+                # Default
                 v_ni = ""; v_ti = 0; v_desc = ""; v_qta = 0.0
                 unit_k=0.0; unit_p=0.0; unit_c=0.0; unit_f=0.0
                 
-                # LOGICA DI AUTOCOMPILAZIONE
+                # Autocompilazione
                 if sel_i != "-- Manuale --" and not df_int.empty:
-                    # Trova la riga corrispondente
                     row = df_int[df_int['nome'] == sel_i].iloc[0]
-                    
                     v_ni = row['nome']
-                    v_desc = row.get('descrizione', '') # Recupera descrizione se c'è
-                    v_qta = 1.0 # <--- Qta predefinita a 1 se selezionato da DB
+                    v_desc = row.get('descrizione', '') 
+                    v_qta = 1.0 # Default a 1 se DB
                     
                     map_tipo = {"g": 0, "cps": 1, "mg": 2}
-                    # Gestione robusta se il tipo non fosse salvato correttamente
                     v_ti = map_tipo.get(row.get('tipo', 'g'), 0)
-                    
                     unit_k, unit_p, unit_c, unit_f = row['kcal'], row['pro'], row['carb'], row['fat']
 
-                # Form
                 tip = st.radio("Formato", ["Polvere (g)","Capsule (pz)","Mg"], index=v_ti, horizontal=True, key="i_rad")
                 u = "g" if "Polvere" in tip else ("cps" if "Capsule" in tip else "mg")
                 
                 c1,c2 = st.columns([2,1])
                 nom = c1.text_input("Nome", v_ni, key="i_nm")
-                # Qui usiamo v_qta che sarà 1.0 se preso da DB, o 0.0 se manuale
                 q = c2.number_input(f"Qta ({u})", value=float(v_qta), step=1.0, key="i_q")
                 
-                # Campo Descrizione Autocompilato
-                desc = st.text_input("A cosa serve / Note", v_desc, key="i_desc_field", placeholder="es. Energia pre-workout")
+                # Descrizione Autocompilata
+                desc = st.text_input("A cosa serve / Note", v_desc, key="i_desc_f")
                 
-                # Calcolo Macro in tempo reale
+                # Calcolo Macro
                 val_k = unit_k * q if sel_i != "-- Manuale --" else 0.0
                 val_p = unit_p * q if sel_i != "-- Manuale --" else 0.0
                 val_c = unit_c * q if sel_i != "-- Manuale --" else 0.0
                 val_f = unit_f * q if sel_i != "-- Manuale --" else 0.0
 
-                with st.expander("Macro Totali (Calcolati)"):
+                with st.expander("Macro Totali"):
                     k=st.number_input("K", float(val_k), key="ik"); p=st.number_input("P", float(val_p), key="ip")
                     c=st.number_input("C", float(val_c), key="ic"); f=st.number_input("F", float(val_f), key="if")
                 
@@ -344,7 +336,7 @@ with tab2:
                         add_riga_diario("pasto",{"pasto":cat,"nome":nom,"desc":desc,"gr":q,"unita":u,"cal":k,"pro":p,"carb":c,"fat":f})
                         st.success("OK"); st.rerun()
             
-            # === CIBO NORMALE ===
+            # === CIBO ===
             else:
                 sel = st.selectbox("Cerca", ["-- Manuale --"]+nomi_cibi, key="f_sel")
                 vn,vk,vp,vc,vf = "",0,0,0,0
@@ -362,35 +354,32 @@ with tab2:
                 if st.button("Mangia", type="primary", use_container_width=True, key="bf"):
                     if nom: add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f}); st.success("OK"); st.rerun()
 
-    # --- COLONNA DESTRA: GESTIONE DB ---
     with c_db:
         st.subheader("💾 Gestione DB")
-        t_cibo, t_int = st.tabs(["Cibo (100g)", "Integratori"])
+        t_cibo, t_int = st.tabs(["Cibo", "Integratori"])
         
         with t_cibo:
             with st.container():
+                st.caption("Valori per 100g")
                 with st.form("dbf"):
-                    n=st.text_input("Nome", key="dbn"); k=st.number_input("K 100g", key="dbk"); p=st.number_input("P", key="dbp"); c=st.number_input("C", key="dbc"); f=st.number_input("F", key="dbf")
+                    n=st.text_input("Nome", key="dbn"); k=st.number_input("K", key="dbk"); p=st.number_input("P", key="dbp"); c=st.number_input("C", key="dbc"); f=st.number_input("F", key="dbf")
                     if st.form_submit_button("Salva Cibo"):
                         if n: save_data("cibi", pd.concat([df_cibi, pd.DataFrame([{"nome":n,"kcal":k,"pro":p,"carb":c,"fat":f}])], ignore_index=True)); st.rerun()
         
         with t_int:
             with st.container():
-                st.info("Salva valori per 1 dose/grammo")
+                st.caption("Valori per 1 dose/grammo")
                 with st.form("dbi"):
                     ni=st.text_input("Nome", key="dbi_n")
-                    # Campo Descrizione da salvare nel DB
-                    di=st.text_input("Descrizione (es. Post-Workout)", key="dbi_d")
-                    
-                    ti_sel = st.radio("Tipo", ["Polvere (g)", "Capsule (cps)", "Mg"], key="dbi_t")
+                    di=st.text_input("Descrizione", key="dbi_d")
+                    ti_sel = st.radio("Tipo", ["Polvere (g)", "Capsula (cps)", "Mg"], key="dbi_t")
                     ti_val = "g" if "Polvere" in ti_sel else ("cps" if "Capsula" in ti_sel else "mg")
                     c1,c2=st.columns(2)
-                    ki=c1.number_input("Kcal x 1", key="dbi_k"); pi=c2.number_input("Pro x 1", key="dbi_p")
-                    ci=c1.number_input("Carb x 1", key="dbi_c"); fi=c2.number_input("Fat x 1", key="dbi_f")
+                    ki=c1.number_input("K", key="dbi_k"); pi=c2.number_input("P", key="dbi_p")
+                    ci=c1.number_input("C", key="dbi_c"); fi=c2.number_input("F", key="dbi_f")
                     
                     if st.form_submit_button("Salva Integratore"):
                         if ni:
-                            # Salviamo anche la colonna 'descrizione'
                             save_data("integratori", pd.concat([df_int, pd.DataFrame([{
                                 "nome":ni, "tipo":ti_val, "descrizione":di,
                                 "kcal":ki, "pro":pi, "carb":ci, "fat":fi
