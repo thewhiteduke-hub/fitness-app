@@ -7,24 +7,22 @@ import altair as alt
 import google.generativeai as genai
 
 # ==========================================
-# 🎨 UI/UX DESIGN SYSTEM (FIX CONTRASTO & CRASH)
+# 🎨 UI/UX DESIGN SYSTEM (V9.0 - CONTRAST & MATH FIX)
 # ==========================================
 st.set_page_config(page_title="Fit Tracker Pro", page_icon="💪", layout="wide")
 
 st.markdown("""
 <style>
-    /* 1. Sfondo App */
+    /* 1. Sfondo App e Testo Base */
     .stApp {
         background-color: #F8F9FB;
         color: #1f1f1f;
     }
-    
-    /* 2. Testi generici */
     p, div, label, span, li, h1, h2, h3, h4, h5, h6 {
         color: #1f1f1f !important;
     }
     
-    /* 3. Card Bianche */
+    /* 2. Card Bianche */
     div[data-testid="stContainer"] {
         background-color: #ffffff;
         border-radius: 12px;
@@ -33,50 +31,47 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(0,0,0,0.05);
     }
     
-    /* 4. Sidebar */
+    /* 3. Sidebar */
     section[data-testid="stSidebar"] {
         background-color: #ffffff;
         border-right: 1px solid #e0e0e0;
     }
 
-    /* 5. FIX AGGRESSIVO MENU A TENDINA (Selectbox) */
-    /* Forza il box di selezione a essere bianco con testo nero */
-    div[data-baseweb="select"] > div {
+    /* 4. FIX SUPER-AGGRESSIVO MENU A TENDINA E INPUT */
+    /* Forza sfondo BIANCO e testo NERO su tutti gli input */
+    .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
         border: 1px solid #ccc !important;
     }
     
-    /* Forza il menu a discesa (popover) a essere bianco */
-    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
+    /* Forza il menu a discesa (popover) */
+    div[data-baseweb="popover"] {
+        background-color: #ffffff !important;
+        border: 1px solid #ccc !important;
+    }
+    
+    /* Forza il menu interno */
+    div[data-baseweb="menu"], ul[role="listbox"] {
         background-color: #ffffff !important;
     }
     
-    /* Forza le opzioni a essere nere */
+    /* Opzioni del menu: Testo nero su sfondo bianco */
     li[role="option"], div[role="option"] {
         color: #000000 !important;
         background-color: #ffffff !important;
     }
     
-    /* Testo dell'opzione selezionata o hover */
+    /* Hover: Sfondo grigio chiaro, testo nero */
     li[role="option"]:hover, div[role="option"]:hover, li[aria-selected="true"] {
         background-color: #f0f2f6 !important;
         color: #000000 !important;
     }
-    
-    /* Icona della freccetta nel menu */
-    svg[data-icon="chevron-down"] {
-        fill: #000000 !important;
-    }
 
-    /* 6. Input Fields */
-    .stTextInput input, .stNumberInput input, .stTextArea textarea {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-        border: 1px solid #ccc !important;
-    }
+    /* Placeholder */
+    ::placeholder { color: #666666 !important; opacity: 1; }
 
-    /* 7. Metriche */
+    /* 5. Metriche */
     div[data-testid="stMetricValue"] {
         color: #0051FF !important;
         font-size: 26px !important;
@@ -98,13 +93,13 @@ def check_password():
         st.write("")
         with st.container(border=True):
             st.title("🔒 Accesso")
-            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_80")
+            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_90")
     return False
 
 def password_entered():
-    if st.session_state["pwd_login_80"] == st.secrets["APP_PASSWORD"]:
+    if st.session_state["pwd_login_90"] == st.secrets["APP_PASSWORD"]:
         st.session_state["password_correct"] = True
-        del st.session_state["pwd_login_80"]
+        del st.session_state["pwd_login_90"]
     else: st.error("Password errata")
 
 if not check_password(): st.stop()
@@ -165,7 +160,7 @@ user_settings = get_user_settings()
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=60)
     st.markdown("### Fit Tracker Pro")
-    st.caption("v8.0 - Full Autofill & UI Fix")
+    st.caption("v9.0 - Proportional Fix")
     
     st.markdown("---")
     st.markdown("**🎯 Target**")
@@ -300,7 +295,7 @@ with tab1:
                     if c_btn.button("🗑️", key=f"d_w_{w['idx']}"): delete_riga(w['idx']); st.rerun()
         else: st.info("Riposo.")
 
-# --- ALIMENTAZIONE (FULL AUTOFILL & SAFETY FIX) ---
+# --- ALIMENTAZIONE (AUTOFILL & PROPORTIONAL FIX) ---
 with tab2:
     c_in, c_db = st.columns([2,1])
     
@@ -321,30 +316,31 @@ with tab2:
             if cat == "Integrazione":
                 sel_i = st.selectbox("Cerca Integratore", ["-- Manuale --"] + nomi_int, key="search_int")
                 
-                # UPDATE FORZATO INTEGRATORI
+                # UPDATE FORZATO SE CAMBIA DROPDOWN
                 if "last_sel_int" not in st.session_state: st.session_state.last_sel_int = None
+                
                 if sel_i != st.session_state.last_sel_int:
                     st.session_state.last_sel_int = sel_i
                     if sel_i != "-- Manuale --" and not df_int.empty:
                         try:
                             row = df_int[df_int['nome'] == sel_i].iloc[0]
-                            st.session_state['i_nm'] = str(row['nome']) # SAFETY STRING
-                            # Fix per Descrizione NaN
-                            desc_val = row.get('descrizione', '')
-                            st.session_state['i_desc_f'] = str(desc_val) if pd.notna(desc_val) else ""
+                            st.session_state['i_nm'] = str(row['nome']) 
+                            # FIX DESCRIZIONE NULLA
+                            d_val = row.get('descrizione', '')
+                            st.session_state['i_desc_f'] = str(d_val) if pd.notna(d_val) else ""
+                            st.session_state['i_q'] = 1.0 
                             
-                            st.session_state['i_q'] = 1.0 # Default a 1
+                            # SALVO VALORI BASE (UNITARI)
+                            st.session_state['base_int'] = {'k': row['kcal'], 'p': row['pro'], 'c': row['carb'], 'f': row['fat']}
                             
-                            st.session_state['temp_int_vals'] = {
-                                'k': row['kcal'], 'p': row['pro'], 'c': row['carb'], 'f': row['fat']
-                            }
                             map_tipo = {"g": 0, "cps": 1, "mg": 2}
                             st.session_state['temp_tipo_idx'] = map_tipo.get(row.get('tipo', 'g'), 0)
                         except: pass
                     else:
-                        st.session_state['temp_int_vals'] = {'k':0,'p':0,'c':0,'f':0}
+                        st.session_state['base_int'] = {'k':0,'p':0,'c':0,'f':0}
                 
-                unit_vals = st.session_state.get('temp_int_vals', {'k':0,'p':0,'c':0,'f':0})
+                # Recupero valori base
+                base = st.session_state.get('base_int', {'k':0,'p':0,'c':0,'f':0})
                 tip_idx = st.session_state.get('temp_tipo_idx', 0)
 
                 # Widgets
@@ -353,16 +349,15 @@ with tab2:
                 
                 c1,c2 = st.columns([2,1])
                 nom = c1.text_input("Nome", key="i_nm")
-                q = c2.number_input(f"Qta ({u})", step=1.0, key="i_q")
-                
-                # DESCRIZIONE SAFETY
+                q = c2.number_input(f"Qta ({u})", step=1.0, key="i_q") # Modificando Qta, Streamlit riesegue il codice
                 desc = st.text_input("A cosa serve / Note", key="i_desc_f")
                 
-                # Calcolo
-                val_k = unit_vals['k'] * q
-                val_p = unit_vals['p'] * q
-                val_c = unit_vals['c'] * q
-                val_f = unit_vals['f'] * q
+                # CALCOLO PROPORZIONALE LIVE
+                # Moltiplico i valori base salvati per la quantità attuale
+                val_k = base['k'] * q
+                val_p = base['p'] * q
+                val_c = base['c'] * q
+                val_f = base['f'] * q
 
                 with st.expander("Macro Totali"):
                     k=st.number_input("K", float(val_k), key="ik"); p=st.number_input("P", float(val_p), key="ip")
@@ -379,7 +374,7 @@ with tab2:
             else:
                 sel = st.selectbox("Cerca Cibo", ["-- Manuale --"]+nomi_cibi, key="f_sel")
                 
-                # UPDATE FORZATO CIBI (NUOVA LOGICA)
+                # UPDATE FORZATO SE CAMBIA DROPDOWN
                 if "last_sel_food" not in st.session_state: st.session_state.last_sel_food = None
                 
                 if sel != st.session_state.last_sel_food:
@@ -387,30 +382,30 @@ with tab2:
                     if sel != "-- Manuale --" and not df_cibi.empty:
                         try:
                             row = df_cibi[df_cibi['nome'] == sel].iloc[0]
-                            # Autocompilazione
-                            st.session_state['f_nm'] = str(row['nome']) # Compila Nome
-                            st.session_state['f_gr'] = 100.0 # Default a 100g
+                            st.session_state['f_nm'] = str(row['nome']) 
+                            st.session_state['f_gr'] = 100.0 # Default 100g
                             
-                            st.session_state['temp_food_vals'] = {
-                                'k': row['kcal'], 'p': row['pro'], 'c': row['carb'], 'f': row['fat']
-                            }
+                            # SALVO VALORI BASE (PER 100g)
+                            st.session_state['base_food'] = {'k': row['kcal'], 'p': row['pro'], 'c': row['carb'], 'f': row['fat']}
                         except: pass
                     else:
-                        st.session_state['temp_food_vals'] = {'k':0,'p':0,'c':0,'f':0}
+                        st.session_state['base_food'] = {'k':0,'p':0,'c':0,'f':0}
                 
-                food_vals = st.session_state.get('temp_food_vals', {'k':0,'p':0,'c':0,'f':0})
+                # Recupero valori base
+                base_f = st.session_state.get('base_food', {'k':0,'p':0,'c':0,'f':0})
 
-                # Widgets (Keys f_nm e f_gr collegate a session_state)
+                # Widgets
                 c1,c2 = st.columns([2,1])
                 nom = c1.text_input("Nome", key="f_nm")
-                gr = c2.number_input("Grammi", step=10.0, key="f_gr")
+                gr = c2.number_input("Grammi", step=10.0, key="f_gr") # Modificando Grammi, riesegue
                 
-                # Calcolo
-                fac = gr/100
-                val_k = food_vals['k'] * fac
-                val_p = food_vals['p'] * fac
-                val_c = food_vals['c'] * fac
-                val_f = food_vals['f'] * fac
+                # CALCOLO PROPORZIONALE LIVE
+                # Formula: (Valore su 100g / 100) * Grammi Inseriti
+                fac = gr / 100
+                val_k = base_f['k'] * fac
+                val_p = base_f['p'] * fac
+                val_c = base_f['c'] * fac
+                val_f = base_f['f'] * fac
                 
                 m1,m2,m3,m4=st.columns(4)
                 k=m1.number_input("K",float(val_k),key="fk"); p=m2.number_input("P",float(val_p),key="fp"); c=m3.number_input("C",float(val_c),key="fc"); f=m4.number_input("F",float(val_f),key="ff")
