@@ -7,7 +7,7 @@ import altair as alt
 import google.generativeai as genai
 
 # ==========================================
-# 🎨 UI/UX DESIGN SYSTEM (FIX COLORI & INPUT)
+# 🎨 UI/UX DESIGN SYSTEM (FIX CONTRASTO & CRASH)
 # ==========================================
 st.set_page_config(page_title="Fit Tracker Pro", page_icon="💪", layout="wide")
 
@@ -39,38 +39,44 @@ st.markdown("""
         border-right: 1px solid #e0e0e0;
     }
 
-    /* 5. FIX DEFINITIVO MENU A TENDINA E INPUT */
-    /* Forza sfondo BIANCO e testo NERO per tutti gli input */
-    .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
+    /* 5. FIX AGGRESSIVO MENU A TENDINA (Selectbox) */
+    /* Forza il box di selezione a essere bianco con testo nero */
+    div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
         border: 1px solid #ccc !important;
     }
     
-    /* Forza il menu a discesa (il popover) a essere bianco */
+    /* Forza il menu a discesa (popover) a essere bianco */
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
         background-color: #ffffff !important;
     }
     
-    /* Forza le opzioni dentro il menu a essere nere */
+    /* Forza le opzioni a essere nere */
     li[role="option"], div[role="option"] {
         color: #000000 !important;
         background-color: #ffffff !important;
     }
     
-    /* Effetto Hover sulle opzioni */
+    /* Testo dell'opzione selezionata o hover */
     li[role="option"]:hover, div[role="option"]:hover, li[aria-selected="true"] {
         background-color: #f0f2f6 !important;
         color: #000000 !important;
     }
-
-    /* Colore placeholder */
-    ::placeholder {
-        color: #666666 !important;
-        opacity: 1;
+    
+    /* Icona della freccetta nel menu */
+    svg[data-icon="chevron-down"] {
+        fill: #000000 !important;
     }
 
-    /* 6. Metriche */
+    /* 6. Input Fields */
+    .stTextInput input, .stNumberInput input, .stTextArea textarea {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #ccc !important;
+    }
+
+    /* 7. Metriche */
     div[data-testid="stMetricValue"] {
         color: #0051FF !important;
         font-size: 26px !important;
@@ -159,7 +165,7 @@ user_settings = get_user_settings()
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=60)
     st.markdown("### Fit Tracker Pro")
-    st.caption("v8.0 - Full Autofill")
+    st.caption("v8.0 - Full Autofill & UI Fix")
     
     st.markdown("---")
     st.markdown("**🎯 Target**")
@@ -294,7 +300,7 @@ with tab1:
                     if c_btn.button("🗑️", key=f"d_w_{w['idx']}"): delete_riga(w['idx']); st.rerun()
         else: st.info("Riposo.")
 
-# --- ALIMENTAZIONE (FULL AUTOFILL) ---
+# --- ALIMENTAZIONE (FULL AUTOFILL & SAFETY FIX) ---
 with tab2:
     c_in, c_db = st.columns([2,1])
     
@@ -322,8 +328,11 @@ with tab2:
                     if sel_i != "-- Manuale --" and not df_int.empty:
                         try:
                             row = df_int[df_int['nome'] == sel_i].iloc[0]
-                            st.session_state['i_nm'] = row['nome']
-                            st.session_state['i_desc_f'] = row.get('descrizione', '')
+                            st.session_state['i_nm'] = str(row['nome']) # SAFETY STRING
+                            # Fix per Descrizione NaN
+                            desc_val = row.get('descrizione', '')
+                            st.session_state['i_desc_f'] = str(desc_val) if pd.notna(desc_val) else ""
+                            
                             st.session_state['i_q'] = 1.0 # Default a 1
                             
                             st.session_state['temp_int_vals'] = {
@@ -345,6 +354,8 @@ with tab2:
                 c1,c2 = st.columns([2,1])
                 nom = c1.text_input("Nome", key="i_nm")
                 q = c2.number_input(f"Qta ({u})", step=1.0, key="i_q")
+                
+                # DESCRIZIONE SAFETY
                 desc = st.text_input("A cosa serve / Note", key="i_desc_f")
                 
                 # Calcolo
@@ -368,7 +379,7 @@ with tab2:
             else:
                 sel = st.selectbox("Cerca Cibo", ["-- Manuale --"]+nomi_cibi, key="f_sel")
                 
-                # UPDATE FORZATO CIBI
+                # UPDATE FORZATO CIBI (NUOVA LOGICA)
                 if "last_sel_food" not in st.session_state: st.session_state.last_sel_food = None
                 
                 if sel != st.session_state.last_sel_food:
@@ -376,7 +387,8 @@ with tab2:
                     if sel != "-- Manuale --" and not df_cibi.empty:
                         try:
                             row = df_cibi[df_cibi['nome'] == sel].iloc[0]
-                            st.session_state['f_nm'] = row['nome']
+                            # Autocompilazione
+                            st.session_state['f_nm'] = str(row['nome']) # Compila Nome
                             st.session_state['f_gr'] = 100.0 # Default a 100g
                             
                             st.session_state['temp_food_vals'] = {
@@ -388,7 +400,7 @@ with tab2:
                 
                 food_vals = st.session_state.get('temp_food_vals', {'k':0,'p':0,'c':0,'f':0})
 
-                # Widgets
+                # Widgets (Keys f_nm e f_gr collegate a session_state)
                 c1,c2 = st.columns([2,1])
                 nom = c1.text_input("Nome", key="f_nm")
                 gr = c2.number_input("Grammi", step=10.0, key="f_gr")
