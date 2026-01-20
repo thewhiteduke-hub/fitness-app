@@ -220,21 +220,35 @@ st.caption(f"📅 Data: {get_oggi()}")
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
 # --- DASHBOARD ---
+
 with tab1:
     df = get_data("diario")
     oggi = get_oggi()
     df_oggi = df[df['data'] == oggi] if not df.empty else pd.DataFrame()
     
-    cal=pro=carb=fat=0
-    pasti=[]; allenamenti=[]
+    cal = pro = carb = fat = 0
+    # Struttura per raggruppare i pasti per categoria
+    meal_groups = {
+        "Colazione": [], "Pranzo": [], "Cena": [], 
+        "Spuntino": [], "Integrazione": []
+    }
+    allenamenti = []
+    
     if not df_oggi.empty:
-        for i,r in df_oggi.iterrows():
+        for i, r in df_oggi.iterrows():
             try:
-                d=json.loads(r['dettaglio_json']); d['idx']=i
-                if r['tipo']=='pasto':
-                    cal+=d['cal']; pro+=d['pro']; carb+=d['carb']; fat+=d['fat']
-                    pasti.append(d)
-                elif r['tipo']=='allenamento':
+                d = json.loads(r['dettaglio_json']); d['idx'] = i
+                if r['tipo'] == 'pasto':
+                    # Calcolo Totali
+                    cal += d['cal']; pro += d['pro']; carb += d['carb']; fat += d['fat']
+                    # Raggruppamento
+                    cat = d.get('pasto', 'Spuntino')
+                    if cat in meal_groups:
+                        meal_groups[cat].append(d)
+                    else:
+                        # Fallback se la categoria non matcha
+                        meal_groups["Spuntino"].append(d)
+                elif r['tipo'] == 'allenamento':
                     allenamenti.append(d)
             except: pass
 
@@ -249,14 +263,16 @@ with tab1:
                     curr_peso = f"{d['peso']} kg"
                 except: pass
 
-    TC=user_settings['target_cal']; TP=user_settings['target_pro']
-    k1,k2,k3,k4,k5 = st.columns(5)
-    with k1: st.metric("Kcal", int(cal), f"Rim: {int(TC-cal)}"); st.progress(min(cal/TC, 1.0) if TC>0 else 0)
-    with k2: st.metric("Pro", f"{int(pro)}g", f"Target: {TP}g"); st.progress(min(pro/TP, 1.0) if TP>0 else 0)
+    # KPI
+    TC = user_settings['target_cal']; TP = user_settings['target_pro']
+    k1, k2, k3, k4, k5 = st.columns(5)
+    with k1: st.metric("Kcal", int(cal), f"Rim: {int(TC-cal)}"); st.progress(min(cal/TC, 1.0) if TC > 0 else 0)
+    with k2: st.metric("Pro", f"{int(pro)}g", f"Target: {TP}g"); st.progress(min(pro/TP, 1.0) if TP > 0 else 0)
     with k3: st.metric("Carb", f"{int(carb)}g")
     with k4: st.metric("Fat", f"{int(fat)}g")
     with k5: st.metric("Peso", curr_peso)
 
+    # GRAFICI
     cg1, cg2 = st.columns([2, 1])
     with cg1:
         st.subheader("📉 Andamento Peso")
@@ -270,35 +286,75 @@ with tab1:
 
     with cg2:
         st.subheader("📊 Ripartizione Macro")
-        if cal>0:
+        if cal > 0:
             s = pd.DataFrame({"M":["P","C","F"], "V":[pro*4,carb*4,fat*9]})
             c = alt.Chart(s).encode(theta=alt.Theta("V",stack=True), color=alt.Color("M", scale=alt.Scale(range=['#0051FF','#FFC107','#FF4B4B'])))
             st.altair_chart(c.mark_arc(innerRadius=60), use_container_width=True)
         else: st.caption("Nessun dato.")
 
+    # LISTE DETTAGLIATE CON MENU A TENDINA
     cl1, cl2 = st.columns(2)
+    
+    # --- COLONNA PASTI SUDDIVISI ---
     with cl1:
-        st.subheader("🍎 Pasti")
-        if pasti:
-            for p in pasti:
-                with st.container():
-                    c_txt, c_btn = st.columns([5,1])
-                    qty = f"{int(p.get('gr',0))} {p.get('unita','g')}"
-                    icon = "💊" if p.get('pasto')=="Integrazione" else "🍽️"
-                    c_txt.markdown(f"**{icon} {p['nome']}** ({qty})")
-                    c_txt.caption(f"{int(p['cal'])} kcal")
-                    if c_btn.button("🗑️", key=f"d_p_{p['idx']}"): delete_riga(p['idx']); st.rerun()
-        else: st.info("Vuoto.")
+        st.subheader("🍎 Diario Alimentare")
+        found_meals = False
+        # Ordine di visualizzazione personalizzato
+        order = ["Colazione", "Pranzo", "Cena", "Spuntino", "Integrazione"]
+        
+        for cat in order:
+            items = meal_groups[cat]
+            if items:
+                found_meals = True
+                # Calcolo calorie parziali per il titolo dell'expander
+                sub_cal = sum(x['cal'] for x in items)
+                
+                # Menu a tendina per categoria
+                with st.expander(f"**{cat}** ({int(sub_cal)} kcal)", expanded=True):
+                    for p in items:
+                        c_txt, c_btn = st.columns([5, 1])
+                        qty = f"{int(p.get('gr',0))} {p.get('unita','g')}"
+                        c_txt.markdown(f"- {p['nome']} ({qty})")
+                        # Tasto delete piccolo
+                        if c_btn.button("❌", key=f"del_p_{p['idx']}"): 
+                            delete_riga(p['idx'])
+                            st.rerun()
+        
+        if not found_meals:
+            st.info("Nessun pasto registrato oggi.")
 
+    # --- COLONNA WORKOUT CON ESERCIZI ---
     with cl2:
-        st.subheader("🏋️ Workout")
+        st.subheader("🏋️ Scheda Allenamento")
         if allenamenti:
             for w in allenamenti:
-                with st.container():
-                    c_txt, c_btn = st.columns([5,1])
-                    c_txt.markdown(f"**{w.get('nome_sessione','Workout')}** ({w['durata']} min)")
-                    if c_btn.button("🗑️", key=f"d_w_{w['idx']}"): delete_riga(w['idx']); st.rerun()
-        else: st.info("Riposo.")
+                # Menu a tendina per la sessione
+                with st.expander(f"**{w.get('nome_sessione','Workout')}** ({w['durata']} min)", expanded=True):
+                    
+                    # Lista esercizi dentro l'expander
+                    if 'esercizi' in w and w['esercizi']:
+                        for ex in w['esercizi']:
+                            t = ex.get('type', 'pesi')
+                            if t == "pesi": 
+                                det = f"{ex['serie']}x{ex['reps']} {ex['kg']}kg"
+                            elif t == "isometria":
+                                det = f"{ex['serie']}x {ex['tempo']}s"
+                            elif t == "calisthenics":
+                                det = f"{ex['serie']}x{ex['reps']}"
+                            else: 
+                                det = f"{ex['km']}km {ex['tempo']}m"
+                            
+                            st.markdown(f"🔹 **{ex['nome']}**: {det}")
+                    else:
+                        st.caption("Nessun esercizio salvato.")
+                    
+                    st.markdown("---")
+                    # Tasto per eliminare l'intera sessione
+                    if st.button("Elimina Sessione", key=f"del_w_{w['idx']}"):
+                        delete_riga(w['idx'])
+                        st.rerun()
+        else:
+            st.info("Riposo.")
 
 # --- ALIMENTAZIONE ---
 with tab2:
