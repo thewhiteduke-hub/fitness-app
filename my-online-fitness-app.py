@@ -335,12 +335,17 @@ with tab1:
                     if 'esercizi' in w and w['esercizi']:
                         for ex in w['esercizi']:
                             t = ex.get('type', 'pesi')
+                            
+                            # Formattazione corretta per ogni tipo
                             if t == "pesi": 
                                 det = f"{ex['serie']}x{ex['reps']} {ex['kg']}kg"
                             elif t == "isometria":
-                                det = f"{ex['serie']}x {ex['tempo']}s"
+                                zav = f"+{ex['kg']}kg" if ex.get('kg', 0) > 0 else "bw"
+                                det = f"{ex['serie']}x {ex['tempo']}s ({zav})"
                             elif t == "calisthenics":
-                                det = f"{ex['serie']}x{ex['reps']}"
+                                # QUI LA CORREZIONE: Mostra la zavorra se presente
+                                zav = f"+{ex['kg']}kg" if ex.get('kg', 0) > 0 else "bw"
+                                det = f"{ex['serie']}x{ex['reps']} ({zav})"
                             else: 
                                 det = f"{ex['km']}km {ex['tempo']}m"
                             
