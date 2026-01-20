@@ -451,6 +451,8 @@ with tab2:
 with tab3:
     if 'sess_w' not in st.session_state: st.session_state['sess_w'] = []
     c1, c2 = st.columns([1,2])
+    
+    # Carichiamo il DB esercizi
     df_ex = get_data("esercizi")
     ls_ex = df_ex['nome'].tolist() if not df_ex.empty else []
 
@@ -458,27 +460,63 @@ with tab3:
         with st.container():
             st.subheader("Setup")
             ses = st.text_input("Sessione", "Workout", key="w_ses")
-            mod = st.radio("Modo", ["Pesi","Cardio"], horizontal=True, key="w_mod")
-            if mod=="Pesi":
+            # Aggiunta opzione Isometria
+            mod = st.radio("Modo", ["Pesi", "Isometria", "Cardio"], horizontal=True, key="w_mod")
+            
+            # === PESI ===
+            if mod == "Pesi":
                 sl = st.selectbox("Ex", ["-- New --"]+ls_ex, key="w_sl")
                 nm = sl if sl!="-- New --" else st.text_input("Nome", key="w_nm")
                 s=st.number_input("Set",1,key="ws"); r=st.number_input("Rep",1,key="wr"); w=st.number_input("Kg",0.0,key="ww")
-                if st.button("Add", key="wb"): st.session_state['sess_w'].append({"type":"pesi","nome":nm,"serie":s,"reps":r,"kg":w})
-                with st.expander("Salva Ex"):
+                if st.button("Add", key="wb"): 
+                    st.session_state['sess_w'].append({"type":"pesi","nome":nm,"serie":s,"reps":r,"kg":w})
+                
+                with st.expander("Salva Ex nel DB"):
                     dn = st.text_input("Nome DB", key="wdn")
-                    if st.button("Salva", key="wds"): save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":dn}])], ignore_index=True)); st.rerun()
+                    if st.button("Salva", key="wds"): 
+                        save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":dn}])], ignore_index=True)); st.rerun()
+            
+            # === ISOMETRIA (Nuova Sezione) ===
+            elif mod == "Isometria":
+                sl = st.selectbox("Ex", ["-- New --"]+ls_ex, key="w_iso_sl")
+                nm = sl if sl!="-- New --" else st.text_input("Nome", key="w_iso_nm")
+                
+                c_iso1, c_iso2, c_iso3 = st.columns(3)
+                s = c_iso1.number_input("Set", 1, key="wis_s")
+                t = c_iso2.number_input("Sec", 5, step=5, key="wis_t")
+                w = c_iso3.number_input("Kg", 0.0, key="wis_w")
+                
+                if st.button("Add", key="w_iso_b"):
+                    st.session_state['sess_w'].append({"type":"isometria","nome":nm,"serie":s,"tempo":t,"kg":w})
+                
+                with st.expander("Salva Ex nel DB"):
+                    dn = st.text_input("Nome DB", key="wdn_iso")
+                    if st.button("Salva", key="wds_iso"): 
+                        save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":dn}])], ignore_index=True)); st.rerun()
+
+            # === CARDIO ===
             else:
                 act = st.text_input("Attività", "Corsa", key="ca"); km=st.number_input("Km",0.0,key="ck"); mi=st.number_input("Min",0,key="cm"); kc=st.number_input("Kcal",0,key="cc")
-                if st.button("Add", key="cb"): st.session_state['sess_w'].append({"type":"cardio","nome":act,"km":km,"tempo":mi,"kcal":kc})
+                if st.button("Add", key="cb"): 
+                    st.session_state['sess_w'].append({"type":"cardio","nome":act,"km":km,"tempo":mi,"kcal":kc})
 
     with c2:
         with st.container():
             st.subheader(f"In Corso: {ses}")
             for i,e in enumerate(st.session_state['sess_w']):
-                det = f"{e['serie']}x{e['reps']} {e['kg']}kg" if e['type']=="pesi" else f"{e['km']}km {e['tempo']}min"
+                # Formattazione dinamica in base al tipo
+                if e['type'] == "pesi":
+                    det = f"{e['serie']}x{e['reps']} {e['kg']}kg"
+                elif e['type'] == "isometria":
+                    zav = f"+{e['kg']}kg" if e['kg'] > 0 else "bodyweight"
+                    det = f"{e['serie']}x {e['tempo']}'' ({zav})"
+                else:
+                    det = f"{e['km']}km {e['tempo']}min"
+
                 c_a, c_b = st.columns([5,1])
                 c_a.write(f"**{e['nome']}** - {det}")
                 if c_b.button("❌", key=f"wd_{i}"): st.session_state['sess_w'].pop(i); st.rerun()
+            
             st.divider()
             du = st.number_input("Durata Tot", 0, step=5, key="wdur")
             if st.button("TERMINA", type="primary", use_container_width=True, key="wend"):
