@@ -298,6 +298,7 @@ with tab1:
         else: st.info("Riposo.")
 
 # --- ALIMENTAZIONE (AUTOFILL & PROPORTIONAL FIX) ---
+# --- ALIMENTAZIONE (TEXT AREA FIX) ---
 with tab2:
     c_in, c_db = st.columns([2,1])
     
@@ -318,7 +319,7 @@ with tab2:
             if cat == "Integrazione":
                 sel_i = st.selectbox("Cerca Integratore", ["-- Manuale --"] + nomi_int, key="search_int")
                 
-                # TRIGGER: CAMBIO SELEZIONE
+                # UPDATE FORZATO INTEGRATORI
                 if "last_sel_int" not in st.session_state: st.session_state.last_sel_int = None
                 
                 if sel_i != st.session_state.last_sel_int:
@@ -352,7 +353,9 @@ with tab2:
                 c1,c2 = st.columns([2,1])
                 nom = c1.text_input("Nome", key="i_nm")
                 q = c2.number_input(f"Qta ({u})", step=1.0, key="i_q") 
-                desc = st.text_input("A cosa serve / Note", key="i_desc_f")
+                
+                # --- MODIFICA QUI: TEXT AREA INVECE DI TEXT INPUT ---
+                desc = st.text_area("A cosa serve / Note", key="i_desc_f", height=130, help="Scorri per leggere tutto il testo")
                 
                 # CALCOLO PROPORZIONALE LIVE E UPDATE STATO
                 val_k = base['k'] * q
@@ -360,7 +363,7 @@ with tab2:
                 val_c = base['c'] * q
                 val_f = base['f'] * q
                 
-                # IMPORTANTISSIMO: FORZO LO STATO DELLE CASELLE MACRO
+                # FORZO LO STATO DELLE CASELLE MACRO
                 st.session_state['ik'] = float(val_k)
                 st.session_state['ip'] = float(val_p)
                 st.session_state['ic'] = float(val_c)
@@ -443,7 +446,8 @@ with tab2:
                 st.caption("Valori per 1 dose/grammo")
                 with st.form("dbi"):
                     ni=st.text_input("Nome", key="dbi_n")
-                    di=st.text_input("Descrizione", key="dbi_d")
+                    # Anche qui uso text_area per coerenza, se vuoi scrivere descrizioni lunghe
+                    di=st.text_area("Descrizione", key="dbi_d", height=100)
                     ti_sel = st.radio("Tipo", ["Polvere (g)", "Capsula (cps)", "Mg"], key="dbi_t")
                     ti_val = "g" if "Polvere" in ti_sel else ("cps" if "Capsula" in ti_sel else "mg")
                     c1,c2=st.columns(2)
