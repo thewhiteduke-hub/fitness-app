@@ -7,13 +7,13 @@ import altair as alt
 import google.generativeai as genai
 
 # ==========================================
-# 🎨 UI/UX DESIGN SYSTEM (V10.0 - CSS NUCLEARE & LOGICA FIX)
+# 🎨 UI/UX DESIGN SYSTEM (V11.0 - STABLE)
 # ==========================================
 st.set_page_config(page_title="Fit Tracker Pro", page_icon="💪", layout="wide")
 
 st.markdown("""
 <style>
-    /* 1. Reset Colori Base */
+    /* 1. Sfondo App */
     .stApp {
         background-color: #F8F9FB;
         color: #1f1f1f;
@@ -39,32 +39,21 @@ st.markdown("""
         border-right: 1px solid #e0e0e0;
     }
 
-    /* 5. FIX MENU A TENDINA (Override Totale) */
-    /* Box principale */
+    /* 5. FIX MENU A TENDINA E INPUT */
     div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
         border: 1px solid #ccc !important;
     }
-    /* Testo dentro il box */
-    div[data-baseweb="select"] span {
-        color: #000000 !important;
-    }
-    /* Menu a discesa */
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul {
         background-color: #ffffff !important;
     }
-    /* Le opzioni singole */
-    li[role="option"] {
+    li[role="option"], div[role="option"] {
         color: #000000 !important; 
         background-color: #ffffff !important;
     }
-    div[role="option"] {
-        color: #000000 !important;
-    }
-    /* Hover */
     li[role="option"]:hover, li[aria-selected="true"] {
-        background-color: #e6f0ff !important;
+        background-color: #f0f2f6 !important;
         color: #000000 !important;
     }
 
@@ -96,13 +85,13 @@ def check_password():
         st.write("")
         with st.container(border=True):
             st.title("🔒 Accesso")
-            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_10")
+            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_11")
     return False
 
 def password_entered():
-    if st.session_state["pwd_login_10"] == st.secrets["APP_PASSWORD"]:
+    if st.session_state["pwd_login_11"] == st.secrets["APP_PASSWORD"]:
         st.session_state["password_correct"] = True
-        del st.session_state["pwd_login_10"]
+        del st.session_state["pwd_login_11"]
     else: st.error("Password errata")
 
 if not check_password(): st.stop()
@@ -117,7 +106,7 @@ try:
 except: pass
 
 # ==========================================
-# 🔗 DATABASE & FUNCTIONS
+# 🔗 DATABASE & FUNCTIONS (FIX API ERROR)
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
@@ -126,6 +115,10 @@ def get_data(sheet):
     except: return pd.DataFrame()
 
 def save_data(sheet, df):
+    # --- FIX CRITICO PER API ERROR ---
+    # Sostituisce NaN (Not a Number) e valori infiniti con stringhe vuote o 0
+    # Questo impedisce il crash di gspread
+    df = df.fillna("") 
     conn.update(worksheet=sheet, data=df)
     st.cache_data.clear()
 
@@ -137,7 +130,9 @@ def add_riga_diario(tipo, dati):
         "tipo": tipo,
         "dettaglio_json": json.dumps(dati)
     }])
-    save_data("diario", pd.concat([df, nuova], ignore_index=True))
+    # Riconciliazione colonne per evitare frammentazione
+    df_totale = pd.concat([df, nuova], ignore_index=True)
+    save_data("diario", df_totale)
 
 def delete_riga(idx):
     df = get_data("diario")
@@ -163,7 +158,7 @@ user_settings = get_user_settings()
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=60)
     st.markdown("### Fit Tracker Pro")
-    st.caption("v10.0 - Final Fix")
+    st.caption("v11.0 - Anti-Crash")
     
     st.markdown("---")
     st.markdown("**🎯 Target**")
@@ -297,8 +292,7 @@ with tab1:
                     if c_btn.button("🗑️", key=f"d_w_{w['idx']}"): delete_riga(w['idx']); st.rerun()
         else: st.info("Riposo.")
 
-# --- ALIMENTAZIONE (AUTOFILL & PROPORTIONAL FIX) ---
-# --- ALIMENTAZIONE (TEXT AREA FIX) ---
+# --- ALIMENTAZIONE (AUTOFILL + FIX) ---
 with tab2:
     c_in, c_db = st.columns([2,1])
     
@@ -313,13 +307,11 @@ with tab2:
             st.subheader("Inserimento")
             cat = st.selectbox("Categoria", ["Colazione","Pranzo","Cena","Spuntino","Integrazione"], key="c_sel")
             
-            # ==========================
             # === INTEGRATORI LOGIC ===
-            # ==========================
             if cat == "Integrazione":
                 sel_i = st.selectbox("Cerca Integratore", ["-- Manuale --"] + nomi_int, key="search_int")
                 
-                # UPDATE FORZATO INTEGRATORI
+                # TRIGGER UPDATE
                 if "last_sel_int" not in st.session_state: st.session_state.last_sel_int = None
                 
                 if sel_i != st.session_state.last_sel_int:
@@ -333,20 +325,16 @@ with tab2:
                             st.session_state['i_desc_f'] = str(d_val) if pd.notna(d_val) else ""
                             st.session_state['i_q'] = 1.0 
                             
-                            # SALVO VALORI BASE (UNITARI)
                             st.session_state['base_int'] = {'k': row['kcal'], 'p': row['pro'], 'c': row['carb'], 'f': row['fat']}
-                            
                             map_tipo = {"g": 0, "cps": 1, "mg": 2}
                             st.session_state['temp_tipo_idx'] = map_tipo.get(row.get('tipo', 'g'), 0)
                         except: pass
                     else:
                         st.session_state['base_int'] = {'k':0,'p':0,'c':0,'f':0}
                 
-                # Recupero valori base
                 base = st.session_state.get('base_int', {'k':0,'p':0,'c':0,'f':0})
                 tip_idx = st.session_state.get('temp_tipo_idx', 0)
 
-                # Widgets
                 tip = st.radio("Formato", ["Polvere (g)","Capsule (pz)","Mg"], index=tip_idx, horizontal=True, key="i_rad")
                 u = "g" if "Polvere" in tip else ("cps" if "Capsule" in tip else "mg")
                 
@@ -354,16 +342,16 @@ with tab2:
                 nom = c1.text_input("Nome", key="i_nm")
                 q = c2.number_input(f"Qta ({u})", step=1.0, key="i_q") 
                 
-                # --- MODIFICA QUI: TEXT AREA INVECE DI TEXT INPUT ---
-                desc = st.text_area("A cosa serve / Note", key="i_desc_f", height=130, help="Scorri per leggere tutto il testo")
+                # TEXT AREA PER DESCRIZIONE
+                desc = st.text_area("A cosa serve / Note", key="i_desc_f", height=130)
                 
-                # CALCOLO PROPORZIONALE LIVE E UPDATE STATO
+                # CALCOLO LIVE
                 val_k = base['k'] * q
                 val_p = base['p'] * q
                 val_c = base['c'] * q
                 val_f = base['f'] * q
                 
-                # FORZO LO STATO DELLE CASELLE MACRO
+                # FORZO STATO
                 st.session_state['ik'] = float(val_k)
                 st.session_state['ip'] = float(val_p)
                 st.session_state['ic'] = float(val_c)
@@ -378,13 +366,10 @@ with tab2:
                         add_riga_diario("pasto",{"pasto":cat,"nome":nom,"desc":desc,"gr":q,"unita":u,"cal":k,"pro":p,"carb":c,"fat":f})
                         st.success("OK"); st.rerun()
             
-            # ==========================
             # === CIBO NORMALE LOGIC ===
-            # ==========================
             else:
                 sel = st.selectbox("Cerca Cibo", ["-- Manuale --"]+nomi_cibi, key="f_sel")
                 
-                # TRIGGER: CAMBIO SELEZIONE
                 if "last_sel_food" not in st.session_state: st.session_state.last_sel_food = None
                 
                 if sel != st.session_state.last_sel_food:
@@ -393,30 +378,24 @@ with tab2:
                         try:
                             row = df_cibi[df_cibi['nome'] == sel].iloc[0]
                             st.session_state['f_nm'] = str(row['nome']) 
-                            st.session_state['f_gr'] = 100.0 # Default 100g
-                            
-                            # SALVO VALORI BASE (PER 100g)
+                            st.session_state['f_gr'] = 100.0 
                             st.session_state['base_food'] = {'k': row['kcal'], 'p': row['pro'], 'c': row['carb'], 'f': row['fat']}
                         except: pass
                     else:
                         st.session_state['base_food'] = {'k':0,'p':0,'c':0,'f':0}
                 
-                # Recupero valori base
                 base_f = st.session_state.get('base_food', {'k':0,'p':0,'c':0,'f':0})
 
-                # Widgets
                 c1,c2 = st.columns([2,1])
                 nom = c1.text_input("Nome", key="f_nm")
                 gr = c2.number_input("Grammi", step=10.0, key="f_gr")
                 
-                # CALCOLO PROPORZIONALE LIVE E UPDATE STATO
                 fac = gr / 100
                 val_k = base_f['k'] * fac
                 val_p = base_f['p'] * fac
                 val_c = base_f['c'] * fac
                 val_f = base_f['f'] * fac
                 
-                # FORZO LO STATO MACRO
                 st.session_state['fk'] = float(val_k)
                 st.session_state['fp'] = float(val_p)
                 st.session_state['fc'] = float(val_c)
@@ -446,8 +425,7 @@ with tab2:
                 st.caption("Valori per 1 dose/grammo")
                 with st.form("dbi"):
                     ni=st.text_input("Nome", key="dbi_n")
-                    # Anche qui uso text_area per coerenza, se vuoi scrivere descrizioni lunghe
-                    di=st.text_area("Descrizione", key="dbi_d", height=100)
+                    di=st.text_input("Descrizione", key="dbi_d")
                     ti_sel = st.radio("Tipo", ["Polvere (g)", "Capsula (cps)", "Mg"], key="dbi_t")
                     ti_val = "g" if "Polvere" in ti_sel else ("cps" if "Capsula" in ti_sel else "mg")
                     c1,c2=st.columns(2)
