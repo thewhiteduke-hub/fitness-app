@@ -7,7 +7,7 @@ import altair as alt
 import google.generativeai as genai
 
 # ==========================================
-# 🎨 UI/UX DESIGN SYSTEM (V12.0 - SPEED OPTIMIZED)
+# 🎨 UI/UX DESIGN SYSTEM (V14.0 - DATE PICKER)
 # ==========================================
 st.set_page_config(page_title="Fit Tracker Pro", page_icon="⚡", layout="wide")
 
@@ -85,13 +85,13 @@ def check_password():
         st.write("")
         with st.container(border=True):
             st.title("🔒 Accesso")
-            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_12")
+            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_14")
     return False
 
 def password_entered():
-    if st.session_state["pwd_login_12"] == st.secrets["APP_PASSWORD"]:
+    if st.session_state["pwd_login_14"] == st.secrets["APP_PASSWORD"]:
         st.session_state["password_correct"] = True
-        del st.session_state["pwd_login_12"]
+        del st.session_state["pwd_login_14"]
     else: st.error("Password errata")
 
 if not check_password(): st.stop()
@@ -134,8 +134,12 @@ def save_data(sheet, df):
 def add_riga_diario(tipo, dati):
     df = get_data("diario")
     if df.empty: df = pd.DataFrame(columns=["data", "tipo", "dettaglio_json"])
+    
+    # IMPORTANTE: Salva sempre con la data di OGGI, indipendentemente dalla visualizzazione
+    data_oggi = datetime.datetime.now().strftime("%Y-%m-%d")
+    
     nuova = pd.DataFrame([{
-        "data": datetime.datetime.now().strftime("%Y-%m-%d"),
+        "data": data_oggi,
         "tipo": tipo,
         "dettaglio_json": json.dumps(dati)
     }])
@@ -166,7 +170,14 @@ user_settings = get_user_settings()
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=60)
     st.markdown("### Fit Tracker Pro")
-    st.caption("v12.0 - Turbo Mode")
+    st.caption("v14.0 - Date Picker")
+    
+    st.markdown("---")
+    # --- NUOVO SELETTORE DATA ---
+    st.markdown("**📅 Seleziona Data**")
+    selected_date = st.date_input("Visualizza diario del:", datetime.date.today())
+    # Converti in stringa per il filtro dataframe
+    data_filtro = selected_date.strftime("%Y-%m-%d")
     
     st.markdown("---")
     st.markdown("**🎯 Target**")
@@ -215,16 +226,17 @@ with st.sidebar:
 # 🏠 MAIN
 # ==========================================
 st.title(f"Bentornato, Atleta.")
-st.caption(f"📅 Data: {get_oggi()}")
+# Mostra la data che stiamo visualizzando
+st.caption(f"📅 Riepilogo del: {data_filtro}")
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
 # --- DASHBOARD ---
-
 with tab1:
     df = get_data("diario")
-    oggi = get_oggi()
-    df_oggi = df[df['data'] == oggi] if not df.empty else pd.DataFrame()
+    
+    # FILTRO DATI IN BASE ALLA DATA SELEZIONATA NELLA SIDEBAR
+    df_oggi = df[df['data'] == data_filtro] if not df.empty else pd.DataFrame()
     
     cal = pro = carb = fat = 0
     # Struttura per raggruppare i pasti per categoria
@@ -260,8 +272,14 @@ with tab1:
                 try:
                     d = json.loads(r['dettaglio_json'])
                     misure_list.append({"Data": r['data'], "Peso": d['peso']})
-                    curr_peso = f"{d['peso']} kg"
+                    # Se la misura è della data selezionata, la mostriamo come "Peso del giorno"
+                    if r['data'] == data_filtro:
+                        curr_peso = f"{d['peso']} kg"
                 except: pass
+    
+    # Se non c'è peso registrato OGGI, mostra l'ultimo disponibile in assoluto
+    if curr_peso == "--" and misure_list:
+        curr_peso = f"{misure_list[-1]['Peso']} kg"
 
     # KPI
     TC = user_settings['target_cal']; TP = user_settings['target_pro']
@@ -321,7 +339,7 @@ with tab1:
                             st.rerun()
         
         if not found_meals:
-            st.info("Nessun pasto registrato oggi.")
+            st.info(f"Nessun pasto il {data_filtro}.")
 
     # --- COLONNA WORKOUT CON ESERCIZI ---
     with cl2:
@@ -343,7 +361,6 @@ with tab1:
                                 zav = f"+{ex['kg']}kg" if ex.get('kg', 0) > 0 else "bw"
                                 det = f"{ex['serie']}x {ex['tempo']}s ({zav})"
                             elif t == "calisthenics":
-                                # QUI LA CORREZIONE: Mostra la zavorra se presente
                                 zav = f"+{ex['kg']}kg" if ex.get('kg', 0) > 0 else "bw"
                                 det = f"{ex['serie']}x{ex['reps']} ({zav})"
                             else: 
@@ -359,9 +376,9 @@ with tab1:
                         delete_riga(w['idx'])
                         st.rerun()
         else:
-            st.info("Riposo.")
+            st.info(f"Nessun allenamento il {data_filtro}.")
 
-# --- ALIMENTAZIONE ---
+# --- ALIMENTAZIONE (AUTOFILL + FIX) ---
 with tab2:
     c_in, c_db = st.columns([2,1])
     
@@ -376,7 +393,7 @@ with tab2:
             st.subheader("Inserimento")
             cat = st.selectbox("Categoria", ["Colazione","Pranzo","Cena","Spuntino","Integrazione"], key="c_sel")
             
-            # === INTEGRATORI ===
+            # === INTEGRATORI LOGIC ===
             if cat == "Integrazione":
                 sel_i = st.selectbox("Cerca Integratore", ["-- Manuale --"] + nomi_int, key="search_int")
                 
@@ -389,7 +406,7 @@ with tab2:
                         try:
                             row = df_int[df_int['nome'] == sel_i].iloc[0]
                             st.session_state['i_nm'] = str(row['nome']) 
-                            # FIX DESCRIZIONE
+                            # FIX DESCRIZIONE NULLA
                             d_val = row.get('descrizione', '')
                             st.session_state['i_desc_f'] = str(d_val) if pd.notna(d_val) else ""
                             st.session_state['i_q'] = 1.0 
@@ -411,14 +428,16 @@ with tab2:
                 nom = c1.text_input("Nome", key="i_nm")
                 q = c2.number_input(f"Qta ({u})", step=1.0, key="i_q") 
                 
+                # TEXT AREA PER DESCRIZIONE
                 desc = st.text_area("A cosa serve / Note", key="i_desc_f", height=130)
                 
+                # CALCOLO LIVE
                 val_k = base['k'] * q
                 val_p = base['p'] * q
                 val_c = base['c'] * q
                 val_f = base['f'] * q
                 
-                # FORZO STATO MACRO
+                # FORZO STATO
                 st.session_state['ik'] = float(val_k)
                 st.session_state['ip'] = float(val_p)
                 st.session_state['ic'] = float(val_c)
@@ -433,7 +452,7 @@ with tab2:
                         add_riga_diario("pasto",{"pasto":cat,"nome":nom,"desc":desc,"gr":q,"unita":u,"cal":k,"pro":p,"carb":c,"fat":f})
                         st.success("OK"); st.rerun()
             
-            # === CIBO ===
+            # === CIBO NORMALE LOGIC ===
             else:
                 sel = st.selectbox("Cerca Cibo", ["-- Manuale --"]+nomi_cibi, key="f_sel")
                 
@@ -477,7 +496,7 @@ with tab2:
     # --- DB MANAGER ---
     with c_db:
         st.subheader("💾 Gestione DB")
-        t_cibo, t_int = st.tabs(["Cibo", "Integratori"])
+        t_cibo, t_int, t_ex = st.tabs(["Cibo", "Integratori", "Esercizi"])
         
         with t_cibo:
             with st.container():
@@ -507,8 +526,26 @@ with tab2:
                                 "kcal":ki, "pro":pi, "carb":ci, "fat":fi
                             }])], ignore_index=True))
                             st.rerun()
+        
+        # 3. NUOVA SCHEDA: Caricamento Esercizi in Massa
+        with t_ex:
+            st.caption("Incolla qui la lista (uno per riga)")
+            bulk_text = st.text_area("Lista Esercizi", height=200, key="bulk_ex_area")
+            
+            if st.button("Salva Lista Esercizi"):
+                if bulk_text:
+                    # Carica gli esercizi attuali per sicurezza
+                    df_current_ex = get_data("esercizi")
+                    
+                    # Pulisce la lista (rimuove righe vuote)
+                    lista = [x.strip() for x in bulk_text.split('\n') if x.strip()]
+                    
+                    if lista:
+                        # Crea il dataframe e salva (Default Pesi se non specificato)
+                        new_df = pd.DataFrame({'nome': lista, 'categoria': 'Pesi'})
+                        save_data("esercizi", pd.concat([df_current_ex, new_df], ignore_index=True))
+                        st.success(f"Caricati {len(lista)} esercizi!"); st.rerun()
 
-# --- WORKOUT ---
 # --- WORKOUT ---
 with tab3:
     st.subheader("Workout")
@@ -523,7 +560,6 @@ with tab3:
         df_ex["categoria"] = "Pesi" # Default fallback per vecchi dati
     
     # Liste filtrate per categoria
-    # Se la categoria non matcha esattamente, fallback su lista completa per sicurezza
     ls_pesi = df_ex[df_ex['categoria'] == 'Pesi']['nome'].tolist()
     ls_cali = df_ex[df_ex['categoria'] == 'Calisthenics']['nome'].tolist()
     ls_iso = df_ex[df_ex['categoria'] == 'Isometria']['nome'].tolist()
@@ -541,7 +577,6 @@ with tab3:
             
             # === PESI ===
             if mod == "Pesi":
-                # Usa la lista filtrata ls_pesi
                 sl = st.selectbox("Esercizio", ["-- Nuovo --"] + sorted(ls_pesi), key="w_sl")
                 nm = st.text_input("Nome", key="w_nm") if sl == "-- Nuovo --" else sl
                 
@@ -558,7 +593,6 @@ with tab3:
 
             # === CALISTHENICS ===
             elif mod == "Calisthenics":
-                # Usa la lista filtrata ls_cali
                 sl = st.selectbox("Esercizio", ["-- Nuovo --"] + sorted(ls_cali), key="w_cali_sl")
                 nm = st.text_input("Nome", key="w_cali_nm") if sl == "-- Nuovo --" else sl
                 
@@ -575,7 +609,6 @@ with tab3:
 
             # === ISOMETRIA ===
             elif mod == "Isometria":
-                # Usa la lista filtrata ls_iso
                 sl = st.selectbox("Esercizio", ["-- Nuovo --"] + sorted(ls_iso), key="w_iso_sl")
                 nm = st.text_input("Nome", key="w_iso_nm") if sl == "-- Nuovo --" else sl
                 
@@ -592,7 +625,6 @@ with tab3:
 
             # === CARDIO ===
             else:
-                # Usa la lista filtrata ls_cardio
                 sl = st.selectbox("Attività", ["-- Nuovo --"] + sorted(ls_cardio), key="w_cardio_sl")
                 nm = st.text_input("Nome", key="ca_nm") if sl == "-- Nuovo --" else sl
                 
