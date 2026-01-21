@@ -21,127 +21,127 @@ st.markdown("""
     }
     
     .stApp {
-        background-color: #F0F2F6; /* Grigio leggermente più freddo */
+        background-color: #F0F2F6;
         color: #171717;
     }
 
-    /* 2. TITOLI E TESTI */
-    h1, h2, h3 {
+    /* 2. TESTI - FORZA COLORE SCURO OVUNQUE */
+    h1, h2, h3, h4, h5, h6, p, div, span, label, li {
         color: #111827 !important;
-        font-weight: 800 !important;
-        letter-spacing: -0.5px;
-    }
-    h4, h5, h6, p, div, span, label {
-        color: #374151 !important;
     }
     
-    /* 3. CARD DESIGN (Sostituisce il container standard) */
+    /* 3. CARD DESIGN */
     div[data-testid="stContainer"] {
         background-color: #ffffff;
         border-radius: 16px;
         padding: 24px;
-        border: 1px solid #E5E7EB; /* Bordo sottile grigio */
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
     
-    /* Rimuove stile card dai container interni non necessari */
+    /* Reset container interni */
     div[data-testid="stContainer"] div[data-testid="stContainer"] {
-        box-shadow: none;
-        border: none;
-        padding: 0;
+        box-shadow: none; border: none; padding: 0;
     }
 
-    /* 4. SIDEBAR PIÙ PULITA */
+    /* 4. SIDEBAR */
     section[data-testid="stSidebar"] {
         background-color: #ffffff;
         border-right: 1px solid #E5E7EB;
     }
     section[data-testid="stSidebar"] div[data-testid="stContainer"] {
-        box-shadow: none; 
-        border: none;
+        box-shadow: none; border: none;
     }
 
-    /* 5. FIX CRITICO INPUT & SELECTBOX (Leggibilità) */
-    /* Forza sfondo bianco e testo scuro per tutti gli input */
+    /* 5. FIX EXPANDER (Il problema dello screenshot) */
+    /* Forza lo sfondo bianco e il bordo anche se Streamlit è in Dark Mode */
+    .streamlit-expanderHeader, div[data-testid="stExpander"] details {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border-radius: 8px;
+        border: 1px solid #E5E7EB;
+    }
+    
+    /* Gestione testo dentro l'header dell'expander */
+    .streamlit-expanderHeader p, .streamlit-expanderHeader span {
+        color: #111827 !important;
+        font-weight: 600;
+    }
+    
+    /* Contenuto dell'expander quando aperto */
+    div[data-testid="stExpander"] div[data-testid="stVerticalBlock"] {
+        background-color: #f9fafb !important; /* Grigio chiarissimo interno */
+        border-radius: 0 0 8px 8px;
+    }
+
+    /* 6. FIX INPUT FIELDS */
     .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
         background-color: #ffffff !important;
         color: #111827 !important;
-        border-radius: 8px;
         border: 1px solid #D1D5DB !important;
     }
     
-    /* Menu a tendina (Dropdown) */
+    /* Menu a tendina */
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul {
         background-color: #ffffff !important;
     }
-    li[role="option"], div[role="option"] {
+    li[role="option"] {
         color: #111827 !important; 
         background-color: #ffffff !important;
     }
-    li[role="option"]:hover, li[aria-selected="true"] {
-        background-color: #EFF6FF !important; /* Azzurro chiarissimo hover */
+    li[role="option"]:hover {
+        background-color: #EFF6FF !important;
         color: #0051FF !important;
-        font-weight: 600;
-    }
-    
-    /* Labels degli input */
-    div[data-testid="stWidgetLabel"] p {
-        font-weight: 600;
-        font-size: 0.9rem;
-        color: #4B5563 !important;
     }
 
-    /* 6. METRICHE & KPI */
-    div[data-testid="stMetricValue"] {
-        color: #0051FF !important; /* Blu Elettrico */
-        font-weight: 800;
-        font-size: 1.8rem !important;
+    /* 7. BOTTONI (Fix bottone "Elimina" scuro) */
+    /* Bottoni Secondari (quelli grigi/neri nello screenshot) */
+    button[kind="secondary"] {
+        background-color: #ffffff !important;
+        border: 1px solid #D1D5DB !important;
+        color: #374151 !important;
+        border-radius: 8px;
     }
-    div[data-testid="stMetricLabel"] {
-        color: #6B7280 !important;
-        font-size: 0.9rem;
+    button[kind="secondary"]:hover {
+        background-color: #F3F4F6 !important;
+        border-color: #9CA3AF !important;
+        color: #111827 !important;
     }
 
-    /* 7. BOTTONI */
-    /* Primary */
+    /* Bottoni Primari (Blu) */
     button[kind="primary"] {
         background-color: #0051FF !important;
         border: none;
+        color: white !important; /* Forza testo bianco SOLO qui */
         border-radius: 8px;
-        font-weight: 600;
-        transition: all 0.2s;
+    }
+    /* Eccezione regola testo globale per i bottoni primari */
+    button[kind="primary"] p {
+        color: white !important;
     }
     button[kind="primary"]:hover {
         background-color: #003ECC !important;
-        box-shadow: 0 4px 12px rgba(0, 81, 255, 0.3);
-    }
-    /* Secondary */
-    button[kind="secondary"] {
-        border: 1px solid #D1D5DB;
-        color: #374151;
-        border-radius: 8px;
     }
 
-    /* 8. TAB NAVIGATION */
-    div[data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: transparent;
+    /* 8. METRICHE */
+    div[data-testid="stMetricValue"] {
+        color: #0051FF !important;
     }
+
+    /* 9. TAB */
+    div[data-baseweb="tab-list"] { background-color: transparent; }
     div[data-baseweb="tab"] {
         background-color: white;
-        border-radius: 8px 8px 0 0;
         border: 1px solid #E5E7EB;
-        padding: 10px 20px;
     }
     div[aria-selected="true"] {
         background-color: #0051FF !important;
         color: white !important;
     }
-    
-    img { border-radius: 12px; }
-    
-    /* Separatore */
-    hr { margin: 1.5em 0; border-color: #E5E7EB; }
+    /* Fix testo tab selezionata */
+    div[aria-selected="true"] p { color: white !important; }
+
+    hr { border-color: #E5E7EB; }
 </style>
 """, unsafe_allow_html=True)
 
