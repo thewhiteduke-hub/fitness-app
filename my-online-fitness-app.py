@@ -250,6 +250,20 @@ st.title(f"Bentornato, Atleta.")
 # Mostra la data che stiamo visualizzando
 st.caption(f"📅 Riepilogo del: {data_filtro}")
 
+# --- 🚑 FIX START: Calcoliamo i dati QUI, prima delle schede ---
+df = get_data("diario")
+misure_list = []
+
+if not df.empty:
+    for _, r in df.iterrows():
+        if r['tipo'] == 'misure':
+            try:
+                d = json.loads(r['dettaglio_json'])
+                misure_list.append({"Data": r['data'], "Peso": d['peso']})
+            except: pass
+# --- 🚑 FIX END ---
+
+# ORA creiamo le schede (Tab)
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
 # --- DASHBOARD ---
