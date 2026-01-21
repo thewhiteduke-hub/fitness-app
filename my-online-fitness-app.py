@@ -290,25 +290,15 @@ with tab1:
     with k4: st.metric("Fat", f"{int(fat)}g")
     with k5: st.metric("Peso", curr_peso)
 
-    # GRAFICI
-    cg1, cg2 = st.columns([2, 1])
-    with cg1:
-        st.subheader("📉 Andamento Peso")
-        if misure_list:
-            chart = alt.Chart(pd.DataFrame(misure_list)).mark_area(
-                line={'color':'#0051FF'},
-                color=alt.Gradient(gradient='linear', stops=[alt.GradientStop(color='#0051FF', offset=0), alt.GradientStop(color='white', offset=1)], x1=1, x2=1, y1=1, y2=0)
-            ).encode(x='Data:T', y=alt.Y('Peso:Q', scale=alt.Scale(zero=False))).properties(height=250)
-            st.altair_chart(chart, use_container_width=True)
-        else: st.info("Nessun dato peso.")
-
-    with cg2:
-        st.subheader("📊 Ripartizione Macro")
-        if cal > 0:
-            s = pd.DataFrame({"M":["P","C","F"], "V":[pro*4,carb*4,fat*9]})
-            c = alt.Chart(s).encode(theta=alt.Theta("V",stack=True), color=alt.Color("M", scale=alt.Scale(range=['#0051FF','#FFC107','#FF4B4B'])))
-            st.altair_chart(c.mark_arc(innerRadius=60), use_container_width=True)
-        else: st.caption("Nessun dato.")
+    # GRAFICO (Solo Peso, Rimosso Macro)
+    st.subheader("📉 Andamento Peso")
+    if misure_list:
+        chart = alt.Chart(pd.DataFrame(misure_list)).mark_area(
+            line={'color':'#0051FF'},
+            color=alt.Gradient(gradient='linear', stops=[alt.GradientStop(color='#0051FF', offset=0), alt.GradientStop(color='white', offset=1)], x1=1, x2=1, y1=1, y2=0)
+        ).encode(x='Data:T', y=alt.Y('Peso:Q', scale=alt.Scale(zero=False))).properties(height=300)
+        st.altair_chart(chart, use_container_width=True)
+    else: st.info("Nessun dato peso.")
 
     # LISTE DETTAGLIATE CON MENU A TENDINA
     cl1, cl2 = st.columns(2)
@@ -377,7 +367,6 @@ with tab1:
                         st.rerun()
         else:
             st.info(f"Nessun allenamento il {data_filtro}.")
-
 # --- ALIMENTAZIONE (AUTOFILL + FIX) ---
 with tab2:
     c_in, c_db = st.columns([2,1])
