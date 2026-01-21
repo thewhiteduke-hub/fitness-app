@@ -7,7 +7,7 @@ import altair as alt
 import google.generativeai as genai
 
 # ==========================================
-# 🎨 UI/UX DESIGN SYSTEM (V14.0 - DATE PICKER)
+# 🎨 UI/UX DESIGN SYSTEM (V14.2 - FIX COLORI & LOGICA)
 # ==========================================
 st.set_page_config(page_title="Fit Tracker Pro", page_icon="⚡", layout="wide")
 
@@ -20,51 +20,45 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
 
-    /* 1. APP BACKGROUND & HEADER */
+    /* 1. SFONDO E TESTI (Forziamo scuro su chiaro) */
     .stApp {
         background-color: #F8F9FB;
+        color: #1f1f1f;
     }
-    header {visibility: hidden;} /* Nasconde header colorato standard */
     
-    /* 2. CUSTOM CARDS */
+    h1, h2, h3, h4, h5, h6, p, span, div {
+        color: #1f1f1f !important;
+    }
+
+    /* 2. CARD PIÙ PULITE */
     div[data-testid="stContainer"] {
         background-color: #ffffff;
-        border-radius: 16px; /* Più arrotondato */
-        padding: 24px;
-        border: 1px solid #f0f0f0;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        transition: box-shadow 0.3s ease;
-    }
-    div[data-testid="stContainer"]:hover {
-        box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
 
-    /* 3. METRICS & TEXT */
-    div[data-testid="stMetricValue"] {
-        color: #0051FF !important;
-        font-weight: 700;
-        font-size: 28px !important;
+    /* 3. INPUT FIELDS (Testo Nero su sfondo Bianco) */
+    .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #d0d0d0 !important;
     }
-    div[data-testid="stMetricLabel"] {
-        color: #666666 !important;
-        font-size: 14px !important;
+    
+    /* Testo dentro i menu a tendina */
+    div[data-baseweb="popover"] li, div[data-baseweb="menu"] div {
+        color: #000000 !important;
     }
-    h1, h2, h3 { color: #111 !important; letter-spacing: -0.5px; }
 
-    /* 4. CUSTOM TABS (PILL STYLE) */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: transparent;
-    }
+    /* 4. TABS STYLE */
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
     .stTabs [data-baseweb="tab"] {
-        height: 40px;
-        white-space: pre-wrap;
         background-color: #ffffff;
         border-radius: 8px;
-        color: #555;
-        font-weight: 600;
+        color: #555555;
         border: 1px solid #e0e0e0;
-        padding: 0px 16px;
+        padding: 4px 16px;
     }
     .stTabs [aria-selected="true"] {
         background-color: #0051FF !important;
@@ -72,25 +66,20 @@ st.markdown("""
         border: none;
     }
 
-    /* 5. INPUT FIELDS & BUTTONS */
-    .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div {
-        border-radius: 8px !important;
-        border: 1px solid #e0e0e0 !important;
+    /* 5. METRICHE */
+    div[data-testid="stMetricValue"] {
+        color: #0051FF !important;
     }
-    div[data-testid="stButton"] button {
-        border-radius: 8px;
-        font-weight: 600;
-        border: none;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    
+    /* 6. BOTTONI */
+    button {
+        color: #1f1f1f !important; 
     }
-    /* Primary Button override */
-    div[data-testid="stButton"] button[kind="primary"] {
-        background-color: #0051FF;
-        transition: transform 0.1s;
+    /* Bottone primario (blu) testo bianco */
+    button[kind="primary"], button[kind="primary"] p {
+        color: #ffffff !important;
     }
-    div[data-testid="stButton"] button[kind="primary"]:active {
-        transform: scale(0.98);
-    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -127,51 +116,34 @@ try:
 except: pass
 
 # ==========================================
-# 🚀 DATABASE ENGINE (CACHING SYSTEM)
+# 🚀 DATABASE ENGINE
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# Funzione interna che usa la cache per non scaricare sempre i dati
-@st.cache_data(ttl=600)  # Mantiene i dati in memoria per 10 minuti
+@st.cache_data(ttl=600)
 def fetch_data_cached(sheet_name):
-    try:
-        return conn.read(worksheet=sheet_name)
-    except:
-        return pd.DataFrame()
+    try: return conn.read(worksheet=sheet_name)
+    except: return pd.DataFrame()
 
-def get_data(sheet):
-    # Chiama la funzione cachata
-    return fetch_data_cached(sheet)
+def get_data(sheet): return fetch_data_cached(sheet)
 
 def save_data(sheet, df):
-    # 1. Pulisce i dati (Anti-Crash)
     df = df.fillna("") 
-    # 2. Scrive su Google Sheets
     conn.update(worksheet=sheet, data=df)
-    # 3. SVUOTA LA CACHE: Così al prossimo "get_data" scaricherà i dati aggiornati
     fetch_data_cached.clear()
     st.cache_data.clear()
 
 def add_riga_diario(tipo, dati):
     df = get_data("diario")
     if df.empty: df = pd.DataFrame(columns=["data", "tipo", "dettaglio_json"])
-    
-    # IMPORTANTE: Salva sempre con la data di OGGI, indipendentemente dalla visualizzazione
     data_oggi = datetime.datetime.now().strftime("%Y-%m-%d")
-    
-    nuova = pd.DataFrame([{
-        "data": data_oggi,
-        "tipo": tipo,
-        "dettaglio_json": json.dumps(dati)
-    }])
+    nuova = pd.DataFrame([{"data": data_oggi, "tipo": tipo, "dettaglio_json": json.dumps(dati)}])
     df_totale = pd.concat([df, nuova], ignore_index=True)
     save_data("diario", df_totale)
 
 def delete_riga(idx):
     df = get_data("diario")
     save_data("diario", df.drop(idx))
-
-def get_oggi(): return datetime.datetime.now().strftime("%Y-%m-%d")
 
 def get_user_settings():
     df = get_data("diario")
@@ -191,18 +163,15 @@ user_settings = get_user_settings()
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=60)
     st.markdown("### Fit Tracker Pro")
-    st.caption("v14.0 - Date Picker")
+    st.caption("v14.2 - UI Fix")
     
     st.markdown("---")
-    # --- NUOVO SELETTORE DATA ---
     st.markdown("**📅 Seleziona Data**")
     selected_date = st.date_input("Visualizza diario del:", datetime.date.today())
-    # Converti in stringa per il filtro dataframe
     data_filtro = selected_date.strftime("%Y-%m-%d")
     
     st.markdown("---")
-    st.markdown("**🎯 Target**")
-    with st.expander("Modifica"):
+    with st.expander("🎯 Target"):
         with st.form("target_form"):
             tc = st.number_input("Target Kcal", value=int(user_settings['target_cal']))
             tp = st.number_input("Target Pro", value=int(user_settings['target_pro']))
@@ -215,7 +184,7 @@ with st.sidebar:
     st.markdown("---")
     if user_settings['url_foto']:
         try: st.image(user_settings['url_foto'], use_container_width=True)
-        except: st.error("Link rotto")
+        except: pass
     
     with st.expander("📸 Cambia Foto"):
         nu = st.text_input("Link Foto", key="s_url")
@@ -244,16 +213,16 @@ with st.sidebar:
     if st.session_state.chat: st.info(st.session_state.chat[-1]['txt'])
 
 # ==========================================
-# 🏠 MAIN
+# 🏠 MAIN - CALCOLO DATI GLOBALE (FIX CRASH)
 # ==========================================
 st.title(f"Bentornato, Atleta.")
-# Mostra la data che stiamo visualizzando
 st.caption(f"📅 Riepilogo del: {data_filtro}")
 
-# --- 🚑 FIX START: Calcoliamo i dati QUI, prima delle schede ---
+# 1. SCARICO I DATI UNA VOLTA SOLA QUI (GLOBALMENTE)
 df = get_data("diario")
 misure_list = []
 
+# 2. PREPARO LA LISTA PESO PER TUTTE LE SCHEDE
 if not df.empty:
     for _, r in df.iterrows():
         if r['tipo'] == 'misure':
@@ -261,12 +230,10 @@ if not df.empty:
                 d = json.loads(r['dettaglio_json'])
                 misure_list.append({"Data": r['data'], "Peso": d['peso']})
             except: pass
-# --- 🚑 FIX END ---
 
-# ORA creiamo le schede (Tab)
+# 3. CREAZIONE TABS
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
-# --- DASHBOARD ---
 # --- DASHBOARD ---
 with tab1:
     df = get_data("diario")
@@ -301,21 +268,22 @@ with tab1:
     col_vis, col_kpi = st.columns([1, 2])
     
     with col_vis:
-        # 🍩 DONUT CHART CALORIE
+        # 🍩 DONUT CHART CALORIE (FIX SFONDO)
         rimanenti = max(0, TC - cal)
         source = pd.DataFrame([
             {"category": "Consumate", "value": cal, "color": "#0051FF"},
             {"category": "Rimanenti", "value": rimanenti, "color": "#E0E0E0"}
         ])
         base = alt.Chart(source).encode(theta=alt.Theta("value", stack=True))
-        pie = base.mark_arc(innerRadius=50).encode(
+        pie = base.mark_arc(innerRadius=60).encode(
             color=alt.Color("color", scale=None),
             tooltip=["category", "value"]
         )
-        text = base.mark_text(radius=0, size=20, color="#0051FF").encode(
+        text = base.mark_text(radius=0, size=24, color="#0051FF").encode(
             text=alt.value(f"{int(cal)}")
         )
-        st.altair_chart(pie + text, use_container_width=True)
+        # Il .properties(background='transparent') è fondamentale per togliere il nero
+        st.altair_chart((pie + text).properties(background='transparent'), use_container_width=True)
         st.caption(f"Target: {int(TC)} kcal")
 
     with col_kpi:
