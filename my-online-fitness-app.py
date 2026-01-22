@@ -329,7 +329,7 @@ with st.sidebar:
         st.info(st.session_state.chat[-1]['txt'])
 
 # ==========================================
-# 🏠 MAIN DASHBOARD (HEADER)
+# 🏠 MAIN DASHBOARD (HEADER REINSERITO)
 # ==========================================
 
 # 1. Recupero URL Foto sicuro
@@ -340,7 +340,7 @@ c_header_txt, c_header_img = st.columns([4, 1])
 
 with c_header_txt:
     st.title(f"Bentornato, Atleta.")
-    # Assicurati che 'data_filtro' sia definita (viene dalla sidebar)
+    # Assicurati che data_filtro sia definita (arriva dalla sidebar)
     st.caption(f"📅 Riepilogo del: {data_filtro}")
 
 with c_header_img:
@@ -359,7 +359,7 @@ with c_header_img:
         </div>
         """, unsafe_allow_html=True)
     else:
-        # Icona Fallback
+        # Icona Fallback (se non c'è foto)
         st.markdown(f"""
         <div style="display:flex; justify-content:flex-end;">
             <div style="
@@ -372,8 +372,7 @@ with c_header_img:
         </div>
         """, unsafe_allow_html=True)
 
-# Spaziatura prima delle schede
-st.write("") 
+st.write("") # Spaziatura
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
