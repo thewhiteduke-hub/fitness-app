@@ -712,7 +712,7 @@ with tab3:
             with st.expander("Salva nel DB"):
                 if st.button("Salva Cardio", key="wds_cardio"): save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":nm, "categoria":"Cardio"}])], ignore_index=True)); st.rerun()
 
-   with c2:
+    with c2:
         st.subheader(f"In Corso: {ses}")
         if st.session_state['sess_w']:
             for i,e in enumerate(st.session_state['sess_w']):
