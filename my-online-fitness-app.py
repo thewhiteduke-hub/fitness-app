@@ -360,18 +360,33 @@ with tab1:
         macro_bar("Carboidrati", carb, TCA, "#33C1FF")
         macro_bar("Grassi", fat, TF, "#FFB033")
 
+    # --- INIZIO CONSISTENCY STREAK (MODIFICATO: SOLO WORKOUT) ---
     st.markdown("---")
-    st.subheader("🔥 La tua Costanza")
+    st.subheader("🔥 La tua Costanza (Workout)")
     
     today = datetime.date.today()
+    # Genera ultimi 7 giorni
     last_7 = [today - datetime.timedelta(days=i) for i in range(6, -1, -1)]
-    active_dates = set(df['data'].tolist()) if not df.empty else set()
+    
+    # ------------------------------------------------------------
+    # ARCHITECT FIX: Filtro solo i giorni con 'tipo' == 'allenamento'
+    # ------------------------------------------------------------
+    active_dates = set()
+    if not df.empty:
+        # Prendo solo le date dove il tipo è 'allenamento'
+        workout_days = df[df['tipo'] == 'allenamento']['data'].tolist()
+        active_dates = set(workout_days)
+    # ------------------------------------------------------------
 
     cols = st.columns(7)
     for idx, day in enumerate(last_7):
         d_str = day.strftime("%Y-%m-%d")
         lbl = day.strftime("%a")
+        
+        # Ora is_active è True SOLO se quel giorno c'è un allenamento
         is_active = d_str in active_dates
+        
+        # Stile condizionale
         bg = "#0051FF" if is_active else "#f0f0f0"
         txt = "#ffffff" if is_active else "#999"
         bdr = "2px solid #0051FF" if day == today else "1px solid #ddd"
@@ -383,6 +398,7 @@ with tab1:
                 <b>{lbl}</b><br>{day.day}
             </div>
             """, unsafe_allow_html=True)
+    # --- FINE CONSISTENCY STREAK ---
     
     st.markdown("---")
     st.subheader("📉 Andamento Peso")
