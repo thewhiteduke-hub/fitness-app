@@ -8,7 +8,7 @@ import altair as alt
 import google.generativeai as genai
 
 # ==========================================
-# 🎨 UI/UX DESIGN SYSTEM (V14.4 - FINAL FORCE LIGHT THEME)
+# 🎨 UI/UX DESIGN SYSTEM (V14.5 - FINAL FORCE LIGHT THEME)
 # ==========================================
 st.set_page_config(page_title="Fit Tracker Pro", page_icon="⚡", layout="wide")
 
@@ -128,7 +128,7 @@ st.markdown("""
 def check_password():
     if "password_correct" not in st.session_state: st.session_state["password_correct"] = False
     if st.session_state["password_correct"]: return True
-    # Default password fallback se secrets non è configurato
+    # Default password fallback
     pwd = st.secrets["APP_PASSWORD"] if "APP_PASSWORD" in st.secrets else "admin"
     
     col1, col2, col3 = st.columns([1,2,1])
@@ -156,7 +156,7 @@ try:
 except: pass
 
 # ==========================================
-# 🚀 DATABASE ENGINE
+# 🚀 DATABASE ENGINE & HELPERS
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
@@ -175,11 +175,22 @@ def save_data(sheet, df):
     fetch_data_cached.clear()
     st.cache_data.clear()
 
-def add_riga_diario(tipo, dati):
+def safe_parse_json(json_str):
+    """Helper per evitare crash su JSON corrotti"""
+    try:
+        if pd.isna(json_str) or json_str == "": return {}
+        return json.loads(json_str)
+    except: return {}
+
+# [FIX] Aggiunta parametro data_custom per back-logging
+def add_riga_diario(tipo, dati, data_custom=None):
     df = get_data("diario")
     if df.empty: df = pd.DataFrame(columns=["data", "tipo", "dettaglio_json"])
-    data_oggi = datetime.datetime.now().strftime("%Y-%m-%d")
-    nuova = pd.DataFrame([{"data": data_oggi, "tipo": tipo, "dettaglio_json": json.dumps(dati)}])
+    
+    # Se passata una data specifica (es. dal calendario), usiamo quella
+    target_date = data_custom if data_custom else datetime.datetime.now().strftime("%Y-%m-%d")
+    
+    nuova = pd.DataFrame([{"data": target_date, "tipo": tipo, "dettaglio_json": json.dumps(dati)}])
     df_totale = pd.concat([df, nuova], ignore_index=True)
     save_data("diario", df_totale)
 
@@ -188,7 +199,7 @@ def delete_riga(idx):
     if idx in df.index:
         save_data("diario", df.drop(idx))
     else:
-        st.warning("Impossibile trovare la riga da eliminare (già cancellata?)")
+        st.warning("Impossibile trovare la riga. Ricarico...")
         time.sleep(1)
         st.cache_data.clear()
         st.rerun()
@@ -199,16 +210,19 @@ def get_user_settings():
     if not df.empty:
         rows = df[df['tipo'] == 'settings']
         if not rows.empty:
-            try: settings.update(json.loads(rows.iloc[-1]['dettaglio_json']))
+            try: settings.update(safe_parse_json(rows.iloc[-1]['dettaglio_json']))
             except: pass
     return settings
 
+# [UPDATED] Funzione Livello Aggiornata con XP Acqua
 def calculate_user_level(df):
     if df.empty: return 1, 0, 0.0, 100
     xp = 0
     xp += len(df[df['tipo'] == 'pasto']) * 5
     xp += len(df[df['tipo'] == 'allenamento']) * 20
     xp += len(df[df['tipo'] == 'misure']) * 10
+    # Nuovo: 2 XP per ogni inserimento acqua
+    xp += len(df[df['tipo'] == 'acqua']) * 2
     
     level = 1 + (xp // 500)
     current_xp = xp % 500
@@ -234,27 +248,17 @@ with st.sidebar:
     # 2. RECUPERO FOTO
     url_avatar = user_settings.get('url_foto', '').strip()
     
-    # 3. PREPARAZIONE AVATAR HTML
+    # 3. HTML AVATAR
     if url_avatar:
         avatar_html = f"""
-        <div style="
-            width: 50px; 
-            height: 50px; 
-            border-radius: 50%; 
-            border: 2px solid #38bdf8; 
-            background-image: url('{url_avatar}'); 
-            background-size: cover; 
-            background-position: center;">
-        </div>
-        """
+        <div style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid #38bdf8; 
+            background-image: url('{url_avatar}'); background-size: cover; background-position: center;"></div>"""
     else:
         avatar_html = f"""
-        <div style="background:#0051FF; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px; color:white;">
-            {lvl}
-        </div>
-        """
+        <div style="background:#0051FF; width:50px; height:50px; border-radius:50%; display:flex; 
+            align-items:center; justify-content:center; font-weight:bold; font-size:18px; color:white;">{lvl}</div>"""
 
-    # 4. RENDER GRAFICO (Il comando essenziale)
+    # 4. CARD LIVELLO
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 20px; border-radius: 16px; color: white; margin-bottom: 20px; border: 1px solid #334155;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -271,14 +275,10 @@ with st.sidebar:
             </div>
         </div>
         <div style="width:100%; background:rgba(255,255,255,0.1); height:8px; border-radius:10px; overflow:hidden;">
-            <div style="width:{prog*100}%; background:linear-gradient(90deg, #38bdf8, #0051FF); height:8px; border-radius:10px; box-shadow: 0 0 10px rgba(0,81,255,0.5);"></div>
-        </div>
-        <div style="margin-top:10px; font-size:11px; color:#94a3b8; text-align:center;">
-            🚀 Prossimo sblocco: <b>Scheda Ipertrofia II</b>
+            <div style="width:{prog*100}%; background:linear-gradient(90deg, #38bdf8, #0051FF); height:8px; border-radius:10px;"></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-
 
     st.markdown("---")
     st.markdown("**📅 Seleziona Data**")
@@ -294,25 +294,21 @@ with st.sidebar:
             tf = st.number_input("Target Fat", value=int(user_settings['target_fat']))
             if st.form_submit_button("Salva"):
                 ns = user_settings.copy(); ns.update({"target_cal":tc,"target_pro":tp,"target_carb":tca,"target_fat":tf})
-                add_riga_diario("settings", ns); st.rerun()
+                add_riga_diario("settings", ns, data_filtro); st.rerun()
 
     st.markdown("---")
-    if user_settings['url_foto']:
-        try: st.image(user_settings['url_foto'], use_container_width=True)
-        except: pass
-    
     with st.expander("📸 Cambia Foto"):
         nu = st.text_input("Link Foto", key="s_url")
         if st.button("Salva", key="s_btn"):
             if nu:
                 ns = user_settings.copy(); ns['url_foto'] = nu
-                add_riga_diario("settings", ns); st.rerun()
+                add_riga_diario("settings", ns, data_filtro); st.rerun()
 
     st.markdown("---")
     w_fast = st.number_input("Peso Rapido (kg)", 0.0, format="%.1f", key="side_w_f")
     if st.button("Salva Peso", key="side_btn_w"):
         if w_fast > 0:
-            add_riga_diario("misure", {"peso": w_fast})
+            add_riga_diario("misure", {"peso": w_fast}, data_filtro)
             st.toast("Salvato!"); st.rerun()
 
     st.markdown("---")
@@ -336,7 +332,7 @@ with st.sidebar:
 # 1. Recupero URL Foto sicuro
 url_avatar = user_settings.get('url_foto', '').strip()
 
-# 2. Layout a Colonne per Titolo e Foto
+# 2. Layout Header
 c_header_txt, c_header_img = st.columns([4, 1])
 
 with c_header_txt:
@@ -347,29 +343,16 @@ with c_header_img:
     if url_avatar:
         st.markdown(f"""
         <div style="display:flex; justify-content:flex-end;">
-            <div style="
-                width: 80px; height: 80px; 
-                border-radius: 50%; 
-                border: 3px solid #0051FF; 
-                background-image: url('{url_avatar}'); 
-                background-size: cover; 
-                background-position: center;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            <div style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #0051FF; 
+                background-image: url('{url_avatar}'); background-size: cover; background-position: center;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.1);"></div>
+        </div>""", unsafe_allow_html=True)
     else:
         st.markdown(f"""
         <div style="display:flex; justify-content:flex-end;">
-            <div style="
-                width: 80px; height: 80px; border-radius: 50%; 
-                background-color: #E5F0FF; color: #0051FF;
-                display:flex; align-items:center; justify-content:center;
-                font-size: 30px; border: 3px solid #0051FF;">
-                👤
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            <div style="width: 80px; height: 80px; border-radius: 50%; background-color: #E5F0FF; color: #0051FF;
+                display:flex; align-items:center; justify-content:center; font-size: 30px; border: 3px solid #0051FF;">👤</div>
+        </div>""", unsafe_allow_html=True)
 
 st.write("") 
 
@@ -380,27 +363,27 @@ with tab1:
     df_oggi = df[df['data'] == data_filtro] if not df.empty else pd.DataFrame()
     
     cal = pro = carb = fat = 0
-    meal_groups = {
-        "Colazione": [], "Pranzo": [], "Cena": [], 
-        "Spuntino": [], "Integrazione": []
-    }
+    meal_groups = {"Colazione": [], "Pranzo": [], "Cena": [], "Spuntino": [], "Integrazione": []}
     allenamenti = []
+    water_today = 0 # [NEW] Variabile accumulo acqua
     
     if not df_oggi.empty:
         for i, r in df_oggi.iterrows():
-            try:
-                d = json.loads(r['dettaglio_json']); 
-                d['idx'] = i 
-                if r['tipo'] == 'pasto':
-                    cal += d.get('cal',0); pro += d.get('pro',0); carb += d.get('carb',0); fat += d.get('fat',0)
-                    cat = d.get('pasto', 'Spuntino')
-                    if cat in meal_groups: meal_groups[cat].append(d)
-                    else: meal_groups["Spuntino"].append(d)
-                elif r['tipo'] == 'allenamento':
-                    allenamenti.append(d)
-            except: pass
+            d = safe_parse_json(r['dettaglio_json'])
+            if not d: continue
+            d['idx'] = i 
+            
+            if r['tipo'] == 'pasto':
+                cal += d.get('cal',0); pro += d.get('pro',0); carb += d.get('carb',0); fat += d.get('fat',0)
+                cat = d.get('pasto', 'Spuntino')
+                if cat in meal_groups: meal_groups[cat].append(d)
+                else: meal_groups["Spuntino"].append(d)
+            elif r['tipo'] == 'allenamento':
+                allenamenti.append(d)
+            elif r['tipo'] == 'acqua':
+                water_today += d.get('ml', 0)
 
-    # --- NUOVA HERO DASHBOARD ---
+    # --- HERO DASHBOARD ---
     TC = user_settings['target_cal']
     perc_cal = min(cal / TC, 1.0) if TC > 0 else 0
     delta_cal = TC - cal
@@ -437,14 +420,20 @@ with tab1:
         with st.container(border=True):
             st.markdown("**💧 Idratazione**")
             cols_w = st.columns(3)
-            if cols_w[1].button("➕ 250ml", key="btn_water_sim"):
-                st.toast("Acqua registrata! (Simulazione)", icon="💧")
-            st.caption("Obiettivo: 2.5 L")
-            st.progress(0.4) 
+            # [FIX] Pulsante acqua funzionante
+            if cols_w[1].button("➕ 250", key="btn_water_real"):
+                add_riga_diario("acqua", {"ml": 250}, data_filtro)
+                st.toast("Idratazione registrata! 💧")
+                time.sleep(0.5)
+                st.rerun()
+                
+            target_water = 2500
+            prog_w = min(water_today / target_water, 1.0) if target_water > 0 else 0
+            st.caption(f"{water_today} / {target_water} ml")
+            st.progress(prog_w) 
 
     st.markdown("---")
     
-    # Riestetica Macro Secondari
     col_vis, col_kpi = st.columns([1, 1])
     with col_vis:
          st.markdown("##### 🍰 Carboidrati")
@@ -594,7 +583,7 @@ with tab2:
 
                 if st.button("Aggiungi", type="primary", use_container_width=True, key="bi"):
                     if nom: 
-                        add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":q,"unita":u,"cal":val_k,"pro":val_p,"carb":val_c,"fat":val_f})
+                        add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":q,"unita":u,"cal":val_k,"pro":val_p,"carb":val_c,"fat":val_f}, data_filtro)
                         clear_form_state(["i_nm", "i_q"])
                         st.rerun()
         else:
@@ -627,7 +616,7 @@ with tab2:
                 st.write("")
                 if st.button("🍽️ Aggiungi al Diario", type="primary", use_container_width=True, key="bf"):
                     if nom: 
-                        add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f})
+                        add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f}, data_filtro)
                         st.success("Pasto aggiunto!")
                         clear_form_state(["f_nm", "f_gr", "fk", "fp", "fc", "ff"])
                         st.rerun()
@@ -699,7 +688,12 @@ with tab3:
         mod = st.radio("Modo", ["Pesi", "Calisthenics", "Cardio"], horizontal=True, key="w_mod")
         
         if mod == "Pesi":
-            sl = st.selectbox("Esercizio", ["-- Nuovo --"] + ls_pesi, key="w_sl")
+            # Callback per pulire inputs
+            def clear_w_in(): 
+                if 'ws' in st.session_state: st.session_state.ws = 1
+                if 'ww' in st.session_state: st.session_state.ww = 0.0
+
+            sl = st.selectbox("Esercizio", ["-- Nuovo --"] + ls_pesi, key="w_sl", on_change=clear_w_in)
             nm = st.text_input("Nome", key="w_nm") if sl == "-- Nuovo --" else sl
             s=st.number_input("Set",1,key="ws"); r=st.number_input("Rep",1,key="wr"); w=st.number_input("Kg",0.0,key="ww")
             if st.button("Aggiungi Set", key="wb"): 
@@ -738,7 +732,7 @@ with tab3:
             du = st.number_input("Durata (min)", 0, step=5, key="wdur")
             
             if st.button("TERMINA & SALVA", type="primary", use_container_width=True):
-                add_riga_diario("allenamento",{"nome_sessione":ses,"durata":du,"esercizi":st.session_state['sess_w']})
+                add_riga_diario("allenamento",{"nome_sessione":ses,"durata":du,"esercizi":st.session_state['sess_w']}, data_filtro)
                 st.session_state['sess_w'] = []
                 st.toast("Workout Salvato! 💪", icon="🔥")
                 time.sleep(1.5) 
@@ -757,7 +751,7 @@ with tab4:
         c3,c4,c5 = st.columns(3)
         co=c3.number_input("Collo", key="ms_co"); vi=c4.number_input("Vita", key="ms_vi"); fi=c5.number_input("Fianchi", key="ms_fi")
         if st.button("Salva Misure", key="fs"):
-            add_riga_diario("misure", {"peso":p,"alt":a,"collo":co,"vita":vi,"fianchi":fi})
+            add_riga_diario("misure", {"peso":p,"alt":a,"collo":co,"vita":vi,"fianchi":fi}, data_filtro)
             st.success("Misure salvate")
             st.rerun()
 
@@ -771,14 +765,17 @@ with tab5:
             u_sk = c2.text_input("Link Foto")
             d_sk = st.text_area("Note")
             if st.form_submit_button("Salva"):
-                if n_sk: add_riga_diario("calisthenics", {"nome": n_sk, "desc": d_sk, "url": u_sk}); st.rerun()
+                if n_sk: 
+                    add_riga_diario("calisthenics", {"nome": n_sk, "desc": d_sk, "url": u_sk}, data_filtro)
+                    st.rerun()
     
     skills = []
     if not df.empty:
         for i, r in df.iterrows():
             if r['tipo'] == 'calisthenics':
                 try:
-                    d = json.loads(r['dettaglio_json']); d['idx'] = i; d['dt'] = r['data']
+                    d = safe_parse_json(r['dettaglio_json'])
+                    d['idx'] = i; d['dt'] = r['data']
                     skills.append(d)
                 except: pass
     
