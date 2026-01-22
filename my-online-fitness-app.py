@@ -14,92 +14,111 @@ st.set_page_config(page_title="Fit Tracker Pro", page_icon="⚡", layout="wide")
 
 st.markdown("""
 <style>
-    /* 1. IMPORT FONT */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    /* 1. IMPORT FONT INTER */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-    /* 2. FORZATURA GLOBALE TEMA CHIARO */
     :root {
-        --primary-color: #0051FF;
-        --background-color: #F8F9FB;
-        --secondary-background-color: #ffffff;
-        --text-color: #1f1f1f;
-        --font: 'Inter', sans-serif;
+        --primary: #0051FF;
+        --primary-soft: #E5F0FF;
+        --text-main: #111827;
+        --text-sub: #6B7280;
+        --bg-app: #F3F4F6;
+        --card-bg: #FFFFFF;
+        --success: #10B981;
+        --danger: #EF4444;
     }
 
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
-        color: #1f1f1f;
+        background-color: var(--bg-app);
+        color: var(--text-main);
     }
 
-    .stApp {
-        background-color: #F8F9FB !important;
-    }
-
+    /* PULIZIA UI STREAMLIT */
+    .stApp { background-color: var(--bg-app) !important; }
+    header { visibility: hidden; } /* Nasconde hamburger menu se non necessario */
+    
+    /* SIDEBAR */
     section[data-testid="stSidebar"] {
-        background-color: #ffffff !important;
-        border-right: 1px solid #e0e0e0;
-    }
-    
-    .stMarkdown, .stText, h1, h2, h3, h4, h5, h6, label, p, span, div {
-        color: #1f1f1f !important;
-    }
-    
-    .stTextInput input, .stNumberInput input, .stDateInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-        border: 1px solid #d0d0d0 !important;
-        caret-color: #0051FF;
-    }
-    
-    div[data-baseweb="popover"], div[data-baseweb="menu"], ul {
-        background-color: #ffffff !important;
-    }
-    
-    li[role="option"] {
-        color: #000000 !important;
+        background-color: #FFFFFF !important;
+        border-right: 1px solid #E5E7EB;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.02);
     }
 
+    /* CARD SYSTEM & HOVER EFFECTS */
     div[data-testid="stContainer"] {
-        background-color: #ffffff;
-        border-radius: 12px;
-        padding: 20px;
-        border: 1px solid #e0e0e0;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        background-color: var(--card-bg);
+        border-radius: 16px;
+        padding: 24px;
+        border: 1px solid #F3F4F6;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    div[data-testid="stContainer"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+        border-color: var(--primary-soft);
     }
 
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
-    .stTabs [data-baseweb="tab"] {
+    /* INPUT STYLING */
+    .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {
+        border-radius: 12px !important;
+        border: 1px solid #E5E7EB !important;
+        padding-left: 12px;
+    }
+    .stTextInput input:focus, .stNumberInput input:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px var(--primary-soft) !important;
+    }
+
+    /* BUTTONS */
+    button[kind="primary"] {
+        background: linear-gradient(135deg, #0051FF 0%, #0030CC 100%) !important;
+        border-radius: 12px !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 12px rgba(0, 81, 255, 0.2);
+        border: none !important;
+        transition: all 0.3s ease;
+    }
+    button[kind="primary"]:hover {
+        box-shadow: 0 6px 16px rgba(0, 81, 255, 0.4);
+        transform: scale(1.02);
+    }
+    button[kind="secondary"] {
+        border-radius: 12px !important;
+        border: 1px solid #E5E7EB !important;
+        color: var(--text-main) !important;
+        background: transparent !important;
+    }
+
+    /* CUSTOM METRICS */
+    div[data-testid="stMetricValue"] {
+        font-family: 'Inter', sans-serif;
+        font-weight: 800 !important;
+        color: var(--primary) !important;
+    }
+    div[data-testid="stMetricLabel"] {
+        color: var(--text-sub) !important;
+        font-weight: 500;
+    }
+
+    /* TABS */
+    .stTabs [data-baseweb="tab-list"] {
         background-color: #ffffff;
-        border-radius: 8px;
-        color: #555555;
-        border: 1px solid #e0e0e0;
-        padding: 6px 16px;
+        padding: 8px;
+        border-radius: 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        gap: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border: none !important;
+        border-radius: 10px;
+        font-weight: 600;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #0051FF !important;
-        color: #ffffff !important;
-        border: none;
-    }
-
-    canvas {
-        background-color: transparent !important;
-    }
-
-    div[data-testid="stMetricValue"] { color: #0051FF !important; }
-    
-    button[kind="secondary"] {
-        background-color: #ffffff !important;
-        color: #1f1f1f !important;
-        border: 1px solid #d0d0d0 !important;
-    }
-    button[kind="primary"] {
-        background-color: #0051FF !important;
-        color: #ffffff !important;
-        border: none !important;
-    }
-    
-    div[data-baseweb="calendar"] {
-        background-color: #ffffff !important;
+        background-color: var(--primary-soft) !important;
+        color: var(--primary) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -218,13 +237,31 @@ with st.sidebar:
     # GAMIFICATION HEADER
     lvl, tot_xp, prog, curr_xp = calculate_user_level(df)
     
-    c_img, c_info = st.columns([1, 2])
-    with c_img:
-        st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=50)
-    with c_info:
-        st.markdown(f"### Lvl. {lvl}")
-        st.progress(prog)
-        st.caption(f"XP: {curr_xp}/500")
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 20px; border-radius: 16px; color: white; margin-bottom: 20px; border: 1px solid #334155;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="background:#0051FF; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px; color:white;">
+                    {lvl}
+                </div>
+                <div>
+                    <div style="font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px;">Level</div>
+                    <div style="font-weight:700; font-size:16px; color:white;">Elite Athlete</div>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <span style="font-size:20px; font-weight:800; color:#38bdf8;">{curr_xp}</span>
+                <span style="font-size:12px; color:#64748b;">/ 500 XP</span>
+            </div>
+        </div>
+        <div style="width:100%; background:rgba(255,255,255,0.1); height:8px; border-radius:10px; overflow:hidden;">
+            <div style="width:{prog*100}%; background:linear-gradient(90deg, #38bdf8, #0051FF); height:8px; border-radius:10px; box-shadow: 0 0 10px rgba(0,81,255,0.5);"></div>
+        </div>
+        <div style="margin-top:10px; font-size:11px; color:#94a3b8; text-align:center;">
+            🚀 Prossimo sblocco: <b>Scheda Ipertrofia II</b>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("**📅 Seleziona Data**")
@@ -318,54 +355,74 @@ with tab1:
                     allenamenti.append(d)
             except: pass
 
+    # --- INIZIO NUOVA HERO DASHBOARD (FASE 2) ---
     TC = user_settings['target_cal']
-    col_vis, col_kpi = st.columns([1, 2])
     
-    with col_vis:
-        # 🍩 DONUT CHART CALORIE
-        rimanenti = max(0, TC - cal)
-        
-        # Assicurati che questa riga 'source =' sia allineata con 'rimanenti ='
-        source = pd.DataFrame([
-            {"category": "Consumate", "value": cal, "color": "#0051FF"},
-            {"category": "Rimanenti", "value": rimanenti, "color": "#E0E0E0"}
-        ])
-        
-        base = alt.Chart(source).encode(theta=alt.Theta("value", stack=True))
-        pie = base.mark_arc(innerRadius=60).encode(
-            color=alt.Color("color", scale=None),
-            tooltip=["category", "value"]
-        )
-        text = base.mark_text(radius=0, size=24, color="#0051FF").encode(
-            text=alt.value(f"{int(cal)}")
-        )
-        # Background transparent risolve il riquadro nero/grigio
-        st.altair_chart((pie + text).properties(background='transparent'), use_container_width=True)
-        st.caption(f"Target: {int(TC)} kcal")
-
-    with col_kpi:
-        TP = user_settings['target_pro']; TCA = user_settings['target_carb']; TF = user_settings['target_fat']
-        st.markdown("##### 🥗 Macro Breakdown")
-        
-        def macro_bar(label, val, target, color):
-            perc = min(val/target, 1.0) if target > 0 else 0
+    # Calcolo percentuali per le barre
+    perc_cal = min(cal / TC, 1.0) if TC > 0 else 0
+    delta_cal = TC - cal
+    
+    # LAYOUT A GRID
+    c_hero_1, c_hero_2, c_hero_3 = st.columns([1.5, 1, 1])
+    
+    with c_hero_1:
+        with st.container(border=True):
             st.markdown(f"""
-            <div style="margin-bottom: 8px;">
-                <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px; color:#333;">
-                    <strong>{label}</strong>
-                    <span>{int(val)} / {target}g</span>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <span style="color:#6B7280; font-size:14px; font-weight:600;">CALORIE GIORNALIERE</span>
+                    <h1 style="margin:0; font-size:36px; color:#111827;">{int(cal)} <span style="font-size:18px; color:#9CA3AF;">/ {TC}</span></h1>
                 </div>
-                <div style="width:100%; background-color:#e0e0e0; border-radius:10px; height:8px;">
-                    <div style="width:{perc*100}%; background-color:{color}; border-radius:10px; height:8px;"></div>
+                <div style="background:{'#E5F0FF' if delta_cal > 0 else '#FEE2E2'}; padding:8px 16px; border-radius:20px;">
+                    <span style="color:{'#0051FF' if delta_cal > 0 else '#EF4444'}; font-weight:700;">
+                        {f'{int(delta_cal)} left' if delta_cal >= 0 else f'{abs(int(delta_cal))} over'}
+                    </span>
                 </div>
             </div>
+            <div style="margin-top:15px; width:100%; background:#F3F4F6; height:12px; border-radius:10px;">
+                <div style="width:{perc_cal*100}%; background:linear-gradient(90deg, #0051FF, #00C6FF); height:12px; border-radius:10px; transition:width 1s ease;"></div>
+            </div>
             """, unsafe_allow_html=True)
+    
+    with c_hero_2:
+        with st.container(border=True):
+            TP = user_settings['target_pro']
+            # Gestione divisione per zero
+            prog_p = min(pro/TP, 1.0) if TP > 0 else 0
             
-        macro_bar("Proteine", pro, TP, "#0051FF")
-        macro_bar("Carboidrati", carb, TCA, "#33C1FF")
-        macro_bar("Grassi", fat, TF, "#FFB033")
+            st.metric("Proteine", f"{int(pro)}g", f"{int(TP - pro)}g left", delta_color="normal")
+            st.progress(prog_p)
+            
+    with c_hero_3:
+        with st.container(border=True):
+            st.markdown("**💧 Idratazione**")
+            cols_w = st.columns(3)
+            # Placeholder funzionale
+            if cols_w[1].button("➕ 250ml", key="btn_water_sim"):
+                st.toast("Acqua registrata! (Simulazione)", icon="💧")
+            st.caption("Obiettivo: 2.5 L")
+            st.progress(0.4) 
 
-    # --- INIZIO CONSISTENCY STREAK (MODIFICATO: SOLO WORKOUT) ---
+    st.markdown("---")
+    
+    # Riestetica Macro Secondari (Sotto la Hero)
+    col_vis, col_kpi = st.columns([1, 1])
+    
+    with col_vis:
+         st.markdown("##### 🍰 Carboidrati")
+         TCA = user_settings['target_carb']
+         pc = min(carb/TCA, 1.0) if TCA > 0 else 0
+         st.progress(pc)
+         st.caption(f"{int(carb)} / {TCA}g")
+
+    with col_kpi:
+         st.markdown("##### 🥑 Grassi")
+         TF = user_settings['target_fat']
+         pf = min(fat/TF, 1.0) if TF > 0 else 0
+         st.progress(pf)
+         st.caption(f"{int(fat)} / {TF}g")
+    
+    # --- FINE NUOVA HERO DASHBOARD ---
     st.markdown("---")
     st.subheader("🔥 La tua Costanza (Workout)")
     
