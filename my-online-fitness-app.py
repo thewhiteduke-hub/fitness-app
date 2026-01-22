@@ -468,29 +468,103 @@ with tab2:
                         st.success("Pasto aggiunto!"); st.rerun()
 
     with c_db:
-        st.subheader("💾 DB")
+        st.subheader("💾 Gestione DB")
+        
+        # Carico i dati esercizi qui per averli disponibili nella gestione
+        df_ex_gestione = get_data("esercizi") 
+        
         t_cibo, t_int, t_ex = st.tabs(["Cibo", "Int", "Ex"])
+        
+        # --- TAB CIBO ---
         with t_cibo:
+            st.markdown("**➕ Aggiungi**")
             with st.form("dbf"):
-                n=st.text_input("Nome", key="dbn"); k=st.number_input("K/100g", key="dbk"); p=st.number_input("P", key="dbp"); c=st.number_input("C", key="dbc"); f=st.number_input("F", key="dbf")
+                n=st.text_input("Nome", key="dbn")
+                # Layout compatto per i macro
+                r1, r2, r3, r4 = st.columns(4)
+                k=r1.number_input("K/100", key="dbk"); p=r2.number_input("P", key="dbp")
+                c=r3.number_input("C", key="dbc"); f=r4.number_input("F", key="dbf")
                 if st.form_submit_button("Salva"):
-                    if n: save_data("cibi", pd.concat([df_cibi, pd.DataFrame([{"nome":n,"kcal":k,"pro":p,"carb":c,"fat":f}])], ignore_index=True)); st.rerun()
+                    if n: 
+                        # Controllo duplicati base per nome
+                        if not df_cibi.empty and n in df_cibi['nome'].values:
+                            st.error("Esiste già!")
+                        else:
+                            save_data("cibi", pd.concat([df_cibi, pd.DataFrame([{"nome":n,"kcal":k,"pro":p,"carb":c,"fat":f}])], ignore_index=True))
+                            st.rerun()
+            
+            st.markdown("---")
+            with st.expander("🗑️ Elimina Cibi", expanded=False):
+                if not df_cibi.empty:
+                    # Multiselect per cancellazione multipla
+                    to_del_cibi = st.multiselect("Seleziona cibi da eliminare", options=df_cibi['nome'].sort_values().tolist(), key="del_food_multi")
+                    if to_del_cibi:
+                        st.warning(f"Stai per eliminare {len(to_del_cibi)} elementi.")
+                        if st.button("Conferma Eliminazione Cibi", type="primary"):
+                            # Filtro il dataframe mantenendo solo ciò che NON è nella lista di eliminazione
+                            df_new = df_cibi[~df_cibi['nome'].isin(to_del_cibi)]
+                            save_data("cibi", df_new)
+                            st.success("Database aggiornato!")
+                            st.rerun()
+                else:
+                    st.info("Database vuoto.")
+
+        # --- TAB INTEGRATORI ---
         with t_int:
+            st.markdown("**➕ Aggiungi**")
             with st.form("dbi"):
                 ni=st.text_input("Nome", key="dbi_n"); di=st.text_area("Desc", key="dbi_d", height=60)
-                ti_sel = st.radio("Tipo", ["Polvere", "Capsula", "Mg"], key="dbi_t")
-                ki=st.number_input("K", key="dbi_k"); pi=st.number_input("P", key="dbi_p"); ci=st.number_input("C", key="dbi_c"); fi=st.number_input("F", key="dbi_f")
+                ti_sel = st.radio("Tipo", ["Polvere", "Capsula", "Mg"], key="dbi_t", horizontal=True)
+                r1, r2, r3, r4 = st.columns(4)
+                ki=r1.number_input("K", key="dbi_k"); pi=r2.number_input("P", key="dbi_p")
+                ci=r3.number_input("C", key="dbi_c"); fi=r4.number_input("F", key="dbi_f")
                 if st.form_submit_button("Salva"):
-                    if ni: save_data("integratori", pd.concat([df_int, pd.DataFrame([{"nome":ni,"tipo":("g" if "Polvere" in ti_sel else "cps"),"descrizione":di,"kcal":ki,"pro":pi,"carb":ci,"fat":fi}])], ignore_index=True)); st.rerun()
+                    if ni: 
+                        save_data("integratori", pd.concat([df_int, pd.DataFrame([{"nome":ni,"tipo":("g" if "Polvere" in ti_sel else "cps"),"descrizione":di,"kcal":ki,"pro":pi,"carb":ci,"fat":fi}])], ignore_index=True))
+                        st.rerun()
+            
+            st.markdown("---")
+            with st.expander("🗑️ Elimina Integratori"):
+                if not df_int.empty:
+                    to_del_int = st.multiselect("Seleziona da eliminare", options=df_int['nome'].sort_values().tolist(), key="del_int_multi")
+                    if st.button("Elimina Integratori", type="primary"):
+                        df_new = df_int[~df_int['nome'].isin(to_del_int)]
+                        save_data("integratori", df_new)
+                        st.rerun()
+
+        # --- TAB ESERCIZI ---
         with t_ex:
-            bulk_text = st.text_area("Lista Esercizi", height=200, key="bulk_ex_area")
+            st.markdown("**➕ Aggiungi Bulk**")
+            bulk_text = st.text_area("Lista Esercizi (uno per riga)", height=150, key="bulk_ex_area")
+            cat_bulk = st.selectbox("Categoria Default", ["Pesi", "Calisthenics", "Isometria", "Cardio"], key="cat_bulk_sel")
             if st.button("Salva Lista"):
                 if bulk_text:
-                    df_current_ex = get_data("esercizi")
                     lista = [x.strip() for x in bulk_text.split('\n') if x.strip()]
                     if lista:
-                        new_df = pd.DataFrame({'nome': lista, 'categoria': 'Pesi'})
-                        save_data("esercizi", pd.concat([df_current_ex, new_df], ignore_index=True)); st.rerun()
+                        new_rows = pd.DataFrame({'nome': lista, 'categoria': cat_bulk})
+                        save_data("esercizi", pd.concat([df_ex_gestione, new_rows], ignore_index=True))
+                        st.rerun()
+            
+            st.markdown("---")
+            with st.expander("🗑️ Elimina Esercizi"):
+                if not df_ex_gestione.empty:
+                    # Creo una lista formattata "Nome (Categoria)" per distinguere omonimi
+                    df_ex_gestione['display'] = df_ex_gestione['nome'] + " (" + df_ex_gestione['categoria'] + ")"
+                    
+                    to_del_ex = st.multiselect("Seleziona esercizi", options=df_ex_gestione['display'].sort_values().tolist(), key="del_ex_multi")
+                    
+                    if st.button("Elimina Esercizi", type="primary"):
+                        # Recupero i nomi originali dalla stringa composta
+                        # Nota: questo approccio è semplice. Se hai esercizi con nomi identici in categorie diverse, 
+                        # verranno cancellati entrambi se il nome matcha. Per ora è sufficiente.
+                        names_to_del = [x.split(" (")[0] for x in to_del_ex]
+                        
+                        df_new = df_ex_gestione[~df_ex_gestione['nome'].isin(names_to_del)]
+                        # Rimuovo colonna temporanea
+                        if 'display' in df_new.columns: df_new = df_new.drop(columns=['display'])
+                        
+                        save_data("esercizi", df_new)
+                        st.rerun()
 
 # --- TAB 3: WORKOUT ---
 with tab3:
