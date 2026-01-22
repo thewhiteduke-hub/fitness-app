@@ -239,56 +239,33 @@ df = get_data("diario")
 user_settings = get_user_settings()
 
 # ==========================================
-# 📱 SIDEBAR (VERSIONE FIX DEFINITIVA)
+# 📱 SIDEBAR (VERSIONE NATIVE - STABILE)
 # ==========================================
 with st.sidebar:
     # 1. CALCOLO DATI
     lvl, tot_xp, prog, curr_xp = calculate_user_level(df)
     
-    # 2. RECUPERO FOTO
+    # 2. SEZIONE PROFILO (Semplificata)
     url_avatar = user_settings.get('url_foto', '').strip()
     
-    # 3. HTML AVATAR (Preparazione stringa)
-    if url_avatar:
-        # Usa l'immagine profilo se esiste
-        avatar_div = f"""
-        <div style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid #38bdf8; 
-            background-image: url('{url_avatar}'); background-size: cover; background-position: center;"></div>
-        """
-    else:
-        # Usa il cerchio con il livello se non c'è foto
-        avatar_div = f"""
-        <div style="background:#0051FF; width:50px; height:50px; border-radius:50%; display:flex; 
-            align-items:center; justify-content:center; font-weight:bold; font-size:18px; color:white;">{lvl}</div>
-        """
+    col_av, col_info = st.columns([1, 2])
+    
+    with col_av:
+        if url_avatar:
+            st.image(url_avatar, width=80)
+        else:
+            # Emoji semplice se non c'è foto
+            st.markdown("# 👤")
 
-    # 4. COSTRUZIONE HTML COMPLETO (CARD)
-    # Costruiamo l'HTML in una variabile separata per evitare errori di renderizzazione
-    card_html = f"""
-    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 20px; border-radius: 16px; color: white; margin-bottom: 20px; border: 1px solid #334155;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <div style="display:flex; align-items:center; gap:12px;">
-                {avatar_div}
-                <div>
-                    <div style="font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px;">Level {lvl}</div>
-                    <div style="font-weight:700; font-size:16px; color:white;">Elite Athlete</div>
-                </div>
-            </div>
-            <div style="text-align:right;">
-                <span style="font-size:20px; font-weight:800; color:#38bdf8;">{curr_xp}</span>
-                <span style="font-size:12px; color:#64748b;">/ 500 XP</span>
-            </div>
-        </div>
-        <div style="width:100%; background:rgba(255,255,255,0.1); height:8px; border-radius:10px; overflow:hidden;">
-            <div style="width:{prog*100}%; background:linear-gradient(90deg, #38bdf8, #0051FF); height:8px; border-radius:10px;"></div>
-        </div>
-    </div>
-    """
+    with col_info:
+        st.metric(label="Livello", value=f"{lvl}", delta="Elite Athlete")
+    
+    # Barra XP Standard
+    st.write("")
+    st.progress(prog)
+    st.caption(f"🚀 XP: {curr_xp} / 500")
 
-    # 5. RENDERIZZAZIONE SICURA
-    st.markdown(card_html, unsafe_allow_html=True)
-
-    # --- RESTO DELLA SIDEBAR ---
+    # --- RESTO DELLA SIDEBAR (Funzionalità invariate) ---
     st.markdown("---")
     st.markdown("**📅 Seleziona Data**")
     selected_date = st.date_input("Visualizza diario del:", datetime.date.today())
