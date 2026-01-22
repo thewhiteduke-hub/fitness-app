@@ -338,6 +338,38 @@ with tab1:
         macro_bar("Carboidrati", carb, TCA, "#33C1FF")
         macro_bar("Grassi", fat, TF, "#FFB033")
 
+    macro_bar("Proteine", pro, TP, "#0051FF")
+        macro_bar("Carboidrati", carb, TCA, "#33C1FF")
+        macro_bar("Grassi", fat, TF, "#FFB033")
+
+    st.markdown("---")
+    st.subheader("📉 Andamento Peso")
+
+    if misure_list:
+        # Preparazione DataFrame
+        df_w = pd.DataFrame(misure_list)
+        df_w['Data'] = pd.to_datetime(df_w['Data'])
+        df_w = df_w.sort_values('Data')
+
+        # Configurazione Grafico Altair
+        chart_w = alt.Chart(df_w).mark_line(
+            point=True, color='#0051FF', strokeWidth=3
+        ).encode(
+            x=alt.X('Data:T', axis=alt.Axis(format='%d/%m', title='', tickCount=5)),
+            y=alt.Y('Peso:Q', scale=alt.Scale(zero=False, padding=10), title='Kg'),
+            tooltip=[alt.Tooltip('Data:T', format='%d %B'), alt.Tooltip('Peso:Q')]
+        ).properties(height=250, background='transparent')
+
+        # Visualizzazione Card
+        with st.container(border=True):
+            st.altair_chart(chart_w.interactive(), use_container_width=True)
+            if len(df_w) >= 2:
+                delta = df_w.iloc[-1]['Peso'] - df_w.iloc[-2]['Peso']
+                sym = "⬆" if delta > 0 else "⬇"
+                st.caption(f"Variazione: **{sym} {abs(delta):.1f} kg** rispetto alla pesata precedente.")
+    else:
+        st.info("Nessuna misurazione trovata. Aggiungi il peso dalla Sidebar.")
+  
     st.markdown("---")
 
     cl1, cl2 = st.columns(2)
