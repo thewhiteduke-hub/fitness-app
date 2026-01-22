@@ -3,6 +3,7 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import json
 import datetime
+import time
 import altair as alt
 import google.generativeai as genai
 
@@ -185,15 +186,41 @@ def get_user_settings():
             except: pass
     return settings
 
+def calculate_user_level(df):
+    if df.empty: return 1, 0, 0.0, 100
+    # XP Rules: 5xp pasto, 20xp workout, 10xp peso
+    xp = 0
+    # Conta occorrenze basate sul tipo
+    xp += len(df[df['tipo'] == 'pasto']) * 5
+    xp += len(df[df['tipo'] == 'allenamento']) * 20
+    xp += len(df[df['tipo'] == 'misure']) * 10
+    
+    # Livello: 1 livello ogni 500 XP
+    level = 1 + (xp // 500)
+    current_xp = xp % 500
+    next_level_xp = 500
+    progress = current_xp / next_level_xp
+    return level, xp, progress, int(current_xp)
+
+df = get_data("diario")
 # ==========================================
 # 📱 SIDEBAR
 # ==========================================
 user_settings = get_user_settings()
 
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=60)
-    st.markdown("### Fit Tracker Pro")
-    st.caption("v14.3 - Stable Light")
+# GAMIFICATION HEADER
+    lvl, tot_xp, prog, curr_xp = calculate_user_level(df)
+    
+    c_img, c_info = st.columns([1, 2])
+    with c_img:
+        st.image("https://cdn-icons-png.flaticon.com/512/2964/2964514.png", width=50)
+    with c_info:
+        st.markdown(f"### Lvl. {lvl}")
+        st.progress(prog)
+        st.caption(f"XP: {curr_xp}/500")
+
+    st.markdown("---")
     
     st.markdown("---")
     st.markdown("**📅 Seleziona Data**")
@@ -249,7 +276,7 @@ st.title(f"Bentornato, Atleta.")
 st.caption(f"📅 Riepilogo del: {data_filtro}")
 
 # 1. SCARICO I DATI UNA VOLTA SOLA QUI (GLOBALMENTE)
-df = get_data("diario")
+
 misure_list = []
 
 # 2. PREPARO LA LISTA PESO PER TUTTE LE SCHEDE
@@ -342,8 +369,40 @@ with tab1:
         macro_bar("Grassi", fat, TF, "#FFB033")
 
     # --- QUI USCIAMO DALLA COLONNA E TORNIAMO AL TAB PRINCIPALE ---
+# --- INIZIO CONSISTENCY STREAK ---
+    st.markdown("---")
+    st.subheader("🔥 La tua Costanza")
+    
+    today = datetime.date.today()
+    # Genera ultimi 7 giorni
+    last_7 = [today - datetime.timedelta(days=i) for i in range(6, -1, -1)]
+    
+    # Trova giorni attivi
+    active_dates = set()
+    if not df.empty:
+        active_dates = set(df['data'].tolist())
+
+    cols = st.columns(7)
+    for idx, day in enumerate(last_7):
+        d_str = day.strftime("%Y-%m-%d")
+        lbl = day.strftime("%a")
+        is_active = d_str in active_dates
+        # Stile condizionale
+        bg = "#0051FF" if is_active else "#f0f0f0"
+        txt = "#ffffff" if is_active else "#999"
+        bdr = "2px solid #0051FF" if day == today else "1px solid #ddd"
+        
+        with cols[idx]:
+            st.markdown(f"""
+            <div style="background-color:{bg}; color:{txt}; border-radius:6px; 
+            text-align:center; padding:5px; border:{bdr}; font-size:12px;">
+                <b>{lbl}</b><br>{day.day}
+            </div>
+            """, unsafe_allow_html=True)
+    # --- FINE CONSISTENCY STREAK ---
     
     st.markdown("---")
+    
     st.subheader("📉 Andamento Peso")
 
     if misure_list:
@@ -668,10 +727,19 @@ with tab3:
             
             st.divider()
             du = st.number_input("Durata (min)", 0, step=5, key="wdur")
-            if st.button("TERMINA & SALVA", type="primary", use_container_width=True):
+           if st.button("TERMINA & SALVA", type="primary", use_container_width=True):
+                # Calcolo volume per gamification
+                vol = sum([e.get('serie',0)*e.get('reps',0)*e.get('kg',0) for e in st.session_state['sess_w'] if e.get('type')=='pesi'])
+                
                 add_riga_diario("allenamento",{"nome_sessione":ses,"durata":du,"esercizi":st.session_state['sess_w']})
                 st.session_state['sess_w'] = []
-                st.success("Salvato!"); st.rerun()
+                
+                # Feedback visuale
+                msg = f"Workout Salvato! 🔥"
+                if vol > 0: msg += f" Volume: {int(vol)}kg"
+                st.toast(msg, icon="✅")
+                time.sleep(1.5) # Pausa scenica
+                st.rerun()
         else: st.info("Aggiungi il primo esercizio.")
 
 # --- TAB 4: STORICO (FIXED) ---
