@@ -358,8 +358,6 @@ if not df.empty:
                     misure_list.append({"Data": r['data'], "Peso": float(d['peso'])})
             except: pass
 
-# Ora le Tabs funzioneranno perché misure_list esiste
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
