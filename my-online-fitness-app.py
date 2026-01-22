@@ -712,7 +712,7 @@ with tab3:
             with st.expander("Salva nel DB"):
                 if st.button("Salva Cardio", key="wds_cardio"): save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":nm, "categoria":"Cardio"}])], ignore_index=True)); st.rerun()
 
-    with c2:
+   with c2:
         st.subheader(f"In Corso: {ses}")
         if st.session_state['sess_w']:
             for i,e in enumerate(st.session_state['sess_w']):
@@ -721,26 +721,36 @@ with tab3:
                 elif t == "calisthenics": det = f"{e['serie']}x{e['reps']} (+{e['kg']}kg)"
                 elif t == "isometria": det = f"{e['serie']}x {e['tempo']}s (+{e['kg']}kg)"
                 else: det = f"{e['km']}km in {e['tempo']}m ({e['kcal']} kcal)"
+                
                 c_txt, c_del = st.columns([5,1])
                 c_txt.markdown(f"**{e['nome']}** : {det}")
-                if c_del.button("❌", key=f"del_w_{i}"): st.session_state['sess_w'].pop(i); st.rerun()
+                if c_del.button("❌", key=f"del_w_{i}"): 
+                    st.session_state['sess_w'].pop(i)
+                    st.rerun()
             
             st.divider()
             du = st.number_input("Durata (min)", 0, step=5, key="wdur")
-           if st.button("TERMINA & SALVA", type="primary", use_container_width=True):
-                # Calcolo volume per gamification
+            
+            # --- BLOCCO CORRETTO CON GAMIFICATION ---
+            if st.button("TERMINA & SALVA", type="primary", use_container_width=True):
+                # 1. Calcolo Volume per Gamification
                 vol = sum([e.get('serie',0)*e.get('reps',0)*e.get('kg',0) for e in st.session_state['sess_w'] if e.get('type')=='pesi'])
                 
+                # 2. Salvataggio
                 add_riga_diario("allenamento",{"nome_sessione":ses,"durata":du,"esercizi":st.session_state['sess_w']})
                 st.session_state['sess_w'] = []
                 
-                # Feedback visuale
-                msg = f"Workout Salvato! 🔥"
+                # 3. Feedback Toast
+                msg = "Workout Salvato! 💪"
                 if vol > 0: msg += f" Volume: {int(vol)}kg"
-                st.toast(msg, icon="✅")
-                time.sleep(1.5) # Pausa scenica
+                st.toast(msg, icon="🔥")
+                
+                time.sleep(1.5) 
                 st.rerun()
-        else: st.info("Aggiungi il primo esercizio.")
+            # ----------------------------------------
+            
+        else: 
+            st.info("Aggiungi il primo esercizio.")
 
 # --- TAB 4: STORICO (FIXED) ---
 with tab4:
