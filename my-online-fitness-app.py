@@ -320,6 +320,8 @@ with tab1:
         TF = user_settings['target_fat']
         
         st.markdown("##### 🥗 Macro Breakdown")
+        
+        # Definizione funzione barra (correttamente indentata dentro col_kpi)
         def macro_bar(label, val, target, color):
             perc = min(val/target, 1.0) if target > 0 else 0
             st.markdown(f"""
@@ -334,14 +336,13 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
             
+        # Chiamate alla funzione (TUTTE allineate verticalmente tra loro)
         macro_bar("Proteine", pro, TP, "#0051FF")
         macro_bar("Carboidrati", carb, TCA, "#33C1FF")
         macro_bar("Grassi", fat, TF, "#FFB033")
 
-    macro_bar("Proteine", pro, TP, "#0051FF")
-        macro_bar("Carboidrati", carb, TCA, "#33C1FF")
-        macro_bar("Grassi", fat, TF, "#FFB033")
-
+    # --- QUI USCIAMO DALLA COLONNA E TORNIAMO AL TAB PRINCIPALE ---
+    
     st.markdown("---")
     st.subheader("📉 Andamento Peso")
 
@@ -369,9 +370,9 @@ with tab1:
                 st.caption(f"Variazione: **{sym} {abs(delta):.1f} kg** rispetto alla pesata precedente.")
     else:
         st.info("Nessuna misurazione trovata. Aggiungi il peso dalla Sidebar.")
-  
-    st.markdown("---")
 
+    st.markdown("---")
+    
     cl1, cl2 = st.columns(2)
     with cl1:
         st.subheader("🍎 Diario Oggi")
