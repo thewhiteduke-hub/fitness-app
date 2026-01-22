@@ -230,19 +230,18 @@ df = get_data("diario")
 user_settings = get_user_settings()
 
 # ==========================================
-# 📱 SIDEBAR (Codice Corretto)
+# 📱 SIDEBAR (Sostituisci tutto il blocco iniziale con questo)
 # ==========================================
 with st.sidebar:
-    # 1. Calcoli Livello (Recuperiamo i dati dal DB)
+    # 1. CALCOLO DATI (XP e Livello)
     lvl, tot_xp, prog, curr_xp = calculate_user_level(df)
     
-    # 2. Recupero URL Foto sicuro (dal dizionario user_settings)
-    # Usa .get() per evitare errori se la chiave non esiste
+    # 2. RECUPERO FOTO
     url_avatar = user_settings.get('url_foto', '').strip()
     
-    # 3. Logica Avatar: Creiamo l'HTML per l'immagine o per il cerchio col numero
+    # 3. PREPARAZIONE AVATAR (HTML DINAMICO)
     if url_avatar:
-        # Caso A: C'è la foto -> Mostriamo la foto nel cerchio
+        # Se c'è la foto: Cerchio con immagine
         avatar_html = f"""
         <div style="
             width: 50px; 
@@ -255,15 +254,14 @@ with st.sidebar:
         </div>
         """
     else:
-        # Caso B: Non c'è la foto -> Mostriamo il livello su sfondo blu
+        # Se non c'è foto: Cerchio blu con numero livello
         avatar_html = f"""
         <div style="background:#0051FF; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px; color:white;">
             {lvl}
         </div>
         """
 
-    # 4. RENDERIZZA LA CARD (IL PASSAGGIO FONDAMENTALE!)
-    # Nota: unsafe_allow_html=True è obbligatorio qui
+    # 4. RENDER GRAFICO DELLA CARD (Questo è il comando che mancava!)
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 20px; border-radius: 16px; color: white; margin-bottom: 20px; border: 1px solid #334155;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
