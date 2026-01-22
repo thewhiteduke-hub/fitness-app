@@ -36,7 +36,7 @@ st.markdown("""
 
     /* PULIZIA UI STREAMLIT */
     .stApp { background-color: var(--bg-app) !important; }
-    header { visibility: hidden; } /* Nasconde hamburger menu se non necessario */
+    */ header { visibility: hidden; } /* Nasconde hamburger menu se non necessario */
     
     /* SIDEBAR */
     section[data-testid="stSidebar"] {
@@ -330,61 +330,51 @@ with st.sidebar:
         st.info(st.session_state.chat[-1]['txt'])
 
 # ==========================================
-# 🏠 MAIN DASHBOARD
+# 🏠 MAIN DASHBOARD (HEADER)
 # ==========================================
-# --- INIZIO NUOVO HEADER CON FOTO ---
-    
-    # 1. Recupero URL Foto in modo sicuro
-    url_avatar = user_settings.get('url_foto', '').strip()
 
-    # 2. Creo due colonne: Testo a sinistra, Foto a destra
-    c_header_txt, c_header_img = st.columns([4, 1])
+# 1. Recupero URL Foto sicuro
+url_avatar = user_settings.get('url_foto', '').strip()
 
-    with c_header_txt:
-        st.title(f"Bentornato, Atleta.")
-        st.caption(f"📅 Riepilogo del: {data_filtro}")
+# 2. Layout a Colonne per Titolo e Foto
+c_header_txt, c_header_img = st.columns([4, 1])
 
-    with c_header_img:
-        if url_avatar:
-            # Renderizza l'immagine circolare
-            st.markdown(f"""
-            <div style="display:flex; justify-content:flex-end;">
-                <div style="
-                    width: 80px; 
-                    height: 80px; 
-                    border-radius: 50%; 
-                    border: 3px solid #0051FF; 
-                    background-image: url('{url_avatar}'); 
-                    background-size: cover; 
-                    background-position: center;
-                    box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-                </div>
+with c_header_txt:
+    st.title(f"Bentornato, Atleta.")
+    # Assicurati che 'data_filtro' sia definita (viene dalla sidebar)
+    st.caption(f"📅 Riepilogo del: {data_filtro}")
+
+with c_header_img:
+    if url_avatar:
+        st.markdown(f"""
+        <div style="display:flex; justify-content:flex-end;">
+            <div style="
+                width: 80px; height: 80px; 
+                border-radius: 50%; 
+                border: 3px solid #0051FF; 
+                background-image: url('{url_avatar}'); 
+                background-size: cover; 
+                background-position: center;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
             </div>
-            """, unsafe_allow_html=True)
-        else:
-            # Icona generica se manca la foto
-            st.markdown(f"""
-            <div style="display:flex; justify-content:flex-end;">
-                <div style="
-                    width: 80px; height: 80px; border-radius: 50%; 
-                    background-color: #E5F0FF; color: #0051FF;
-                    display:flex; align-items:center; justify-content:center;
-                    font-size: 30px; border: 3px solid #0051FF;">
-                    👤
-                </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        # Icona Fallback
+        st.markdown(f"""
+        <div style="display:flex; justify-content:flex-end;">
+            <div style="
+                width: 80px; height: 80px; border-radius: 50%; 
+                background-color: #E5F0FF; color: #0051FF;
+                display:flex; align-items:center; justify-content:center;
+                font-size: 30px; border: 3px solid #0051FF;">
+                👤
             </div>
-            """, unsafe_allow_html=True)
-            
-    # --- FINE NUOVO HEADER ---
+        </div>
+        """, unsafe_allow_html=True)
 
-misure_list = []
-if not df.empty:
-    for _, r in df.iterrows():
-        if r['tipo'] == 'misure':
-            try:
-                d = json.loads(r['dettaglio_json'])
-                misure_list.append({"Data": r['data'], "Peso": d['peso']})
-            except: pass
+# Spaziatura prima delle schede
+st.write("") 
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
