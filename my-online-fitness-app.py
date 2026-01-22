@@ -322,11 +322,15 @@ with tab1:
     col_vis, col_kpi = st.columns([1, 2])
     
     with col_vis:
-                rimanenti = max(0, TC - cal)
+        # 🍩 DONUT CHART CALORIE
+        rimanenti = max(0, TC - cal)
+        
+        # Assicurati che questa riga 'source =' sia allineata con 'rimanenti ='
         source = pd.DataFrame([
             {"category": "Consumate", "value": cal, "color": "#0051FF"},
             {"category": "Rimanenti", "value": rimanenti, "color": "#E0E0E0"}
         ])
+        
         base = alt.Chart(source).encode(theta=alt.Theta("value", stack=True))
         pie = base.mark_arc(innerRadius=60).encode(
             color=alt.Color("color", scale=None),
@@ -335,6 +339,7 @@ with tab1:
         text = base.mark_text(radius=0, size=24, color="#0051FF").encode(
             text=alt.value(f"{int(cal)}")
         )
+        # Background transparent risolve il riquadro nero/grigio
         st.altair_chart((pie + text).properties(background='transparent'), use_container_width=True)
         st.caption(f"Target: {int(TC)} kcal")
 
