@@ -342,6 +342,25 @@ with c_header_img:
 
 st.write("") 
 
+st.write("") 
+
+# ==========================================
+# 📊 PREPARAZIONE DATI GLOBALI (Mancava questo pezzo!)
+# ==========================================
+misure_list = []
+if not df.empty:
+    for _, r in df.iterrows():
+        if r['tipo'] == 'misure':
+            try:
+                # Usiamo la funzione safe_parse_json definita in alto
+                d = safe_parse_json(r['dettaglio_json'])
+                if d and 'peso' in d:
+                    misure_list.append({"Data": r['data'], "Peso": float(d['peso'])})
+            except: pass
+
+# Ora le Tabs funzioneranno perché misure_list esiste
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
+
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
 # --- TAB 1: DASHBOARD ---
