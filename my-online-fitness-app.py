@@ -248,7 +248,7 @@ with st.sidebar:
     # 2. RECUPERO FOTO
     url_avatar = user_settings.get('url_foto', '').strip()
     
-    # 3. HTML AVATAR
+    # 3. HTML AVATAR (Costruzione della stringa HTML per l'immagine)
     if url_avatar:
         avatar_html = f"""
         <div style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid #38bdf8; 
@@ -258,7 +258,8 @@ with st.sidebar:
         <div style="background:#0051FF; width:50px; height:50px; border-radius:50%; display:flex; 
             align-items:center; justify-content:center; font-weight:bold; font-size:18px; color:white;">{lvl}</div>"""
 
-    # 4. CARD LIVELLO
+    # 4. CARD LIVELLO - ⚠️ QUI C'ERA L'ERRORE DI VISUALIZZAZIONE
+    # Assicurati che 'unsafe_allow_html=True' sia presente alla fine
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 20px; border-radius: 16px; color: white; margin-bottom: 20px; border: 1px solid #334155;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -278,9 +279,10 @@ with st.sidebar:
             <div style="width:{prog*100}%; background:linear-gradient(90deg, #38bdf8, #0051FF); height:8px; border-radius:10px;"></div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True) # <--- QUESTO È FONDAMENTALE
 
     st.markdown("---")
+    # ... (Il resto della sidebar rimane uguale) ...
     st.markdown("**📅 Seleziona Data**")
     selected_date = st.date_input("Visualizza diario del:", datetime.date.today())
     data_filtro = selected_date.strftime("%Y-%m-%d")
