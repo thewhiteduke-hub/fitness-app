@@ -233,19 +233,36 @@ user_settings = get_user_settings()
 # ==========================================
 # 📱 SIDEBAR
 # ==========================================
+# ==========================================
+# 📱 SIDEBAR
+# ==========================================
 with st.sidebar:
     # GAMIFICATION HEADER
     lvl, tot_xp, prog, curr_xp = calculate_user_level(df)
     
+    # ### ARCHITECT FIX: Logica per scegliere tra Foto Utente o Numero Livello
+    if user_settings.get('url_foto'):
+        # Se c'è la foto, usa un tag IMG HTML circolare
+        avatar_html = f"""
+        <img src="{user_settings['url_foto']}" 
+             style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #38bdf8;">
+        """
+    else:
+        # Fallback: Cerchio blu con il numero del livello
+        avatar_html = f"""
+        <div style="background:#0051FF; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px; color:white;">
+            {lvl}
+        </div>
+        """
+
+    # Inserimento HTML con la variabile avatar_html dinamica
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 20px; border-radius: 16px; color: white; margin-bottom: 20px; border: 1px solid #334155;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <div style="background:#0051FF; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px; color:white;">
-                    {lvl}
-                </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+                {avatar_html}
                 <div>
-                    <div style="font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px;">Level</div>
+                    <div style="font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px;">Level {lvl}</div>
                     <div style="font-weight:700; font-size:16px; color:white;">Elite Athlete</div>
                 </div>
             </div>
