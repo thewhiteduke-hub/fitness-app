@@ -128,7 +128,7 @@ st.markdown("""
 def check_password():
     if "password_correct" not in st.session_state: st.session_state["password_correct"] = False
     if st.session_state["password_correct"]: return True
-    # Default password fallback se secrets non è configurato (utile per debug locale)
+    # Default password fallback se secrets non è configurato
     pwd = st.secrets["APP_PASSWORD"] if "APP_PASSWORD" in st.secrets else "admin"
     
     col1, col2, col3 = st.columns([1,2,1])
@@ -136,7 +136,6 @@ def check_password():
         st.write("")
         with st.container(border=True):
             st.markdown("### 🔒 Accesso")
-            # ### ARCHITECT NOTE: Aggiunta callback per pulire input login
             input_pwd = st.text_input("Password", type="password", key="pwd_login_14")
             if input_pwd == pwd:
                 st.session_state["password_correct"] = True
@@ -159,7 +158,6 @@ except: pass
 # ==========================================
 # 🚀 DATABASE ENGINE
 # ==========================================
-# ### ARCHITECT NOTE: Updated to generic "gsheets" for compatibility
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 @st.cache_data(ttl=600)
@@ -167,7 +165,6 @@ def fetch_data_cached(sheet_name):
     try: 
         return conn.read(worksheet=sheet_name)
     except Exception as e:
-        # Fallback robusto se il foglio non esiste o errore connessione
         return pd.DataFrame()
 
 def get_data(sheet): return fetch_data_cached(sheet)
@@ -188,13 +185,12 @@ def add_riga_diario(tipo, dati):
 
 def delete_riga(idx):
     df = get_data("diario")
-    # ### ARCHITECT NOTE: Check index existence to prevent crash
     if idx in df.index:
         save_data("diario", df.drop(idx))
     else:
         st.warning("Impossibile trovare la riga da eliminare (già cancellata?)")
         time.sleep(1)
-        st.cache_data.clear() # Force clear cache
+        st.cache_data.clear()
         st.rerun()
 
 def get_user_settings():
@@ -220,7 +216,6 @@ def calculate_user_level(df):
     progress = current_xp / next_level_xp
     return level, xp, progress, int(current_xp)
 
-# ### ARCHITECT NOTE: Callback per pulire i form dopo l'invio
 def clear_form_state(keys_to_clear):
     for k in keys_to_clear:
         if k in st.session_state:
@@ -230,18 +225,17 @@ df = get_data("diario")
 user_settings = get_user_settings()
 
 # ==========================================
-# 📱 SIDEBAR (Sostituisci tutto il blocco iniziale con questo)
+# 📱 SIDEBAR
 # ==========================================
 with st.sidebar:
-    # 1. CALCOLO DATI (XP e Livello)
+    # 1. CALCOLO DATI
     lvl, tot_xp, prog, curr_xp = calculate_user_level(df)
     
     # 2. RECUPERO FOTO
     url_avatar = user_settings.get('url_foto', '').strip()
     
-    # 3. PREPARAZIONE AVATAR (HTML DINAMICO)
+    # 3. PREPARAZIONE AVATAR HTML
     if url_avatar:
-        # Se c'è la foto: Cerchio con immagine
         avatar_html = f"""
         <div style="
             width: 50px; 
@@ -254,14 +248,13 @@ with st.sidebar:
         </div>
         """
     else:
-        # Se non c'è foto: Cerchio blu con numero livello
         avatar_html = f"""
         <div style="background:#0051FF; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px; color:white;">
             {lvl}
         </div>
         """
 
-    # 4. RENDER GRAFICO DELLA CARD (Questo è il comando che mancava!)
+    # 4. RENDER GRAFICO (Il comando essenziale)
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 20px; border-radius: 16px; color: white; margin-bottom: 20px; border: 1px solid #334155;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -337,7 +330,7 @@ with st.sidebar:
         st.info(st.session_state.chat[-1]['txt'])
 
 # ==========================================
-# 🏠 MAIN DASHBOARD (HEADER REINSERITO)
+# 🏠 MAIN DASHBOARD
 # ==========================================
 
 # 1. Recupero URL Foto sicuro
@@ -348,7 +341,6 @@ c_header_txt, c_header_img = st.columns([4, 1])
 
 with c_header_txt:
     st.title(f"Bentornato, Atleta.")
-    # Assicurati che data_filtro sia definita (arriva dalla sidebar)
     st.caption(f"📅 Riepilogo del: {data_filtro}")
 
 with c_header_img:
@@ -367,7 +359,6 @@ with c_header_img:
         </div>
         """, unsafe_allow_html=True)
     else:
-        # Icona Fallback (se non c'è foto)
         st.markdown(f"""
         <div style="display:flex; justify-content:flex-end;">
             <div style="
@@ -380,7 +371,7 @@ with c_header_img:
         </div>
         """, unsafe_allow_html=True)
 
-st.write("") # Spaziatura
+st.write("") 
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
@@ -399,7 +390,6 @@ with tab1:
         for i, r in df_oggi.iterrows():
             try:
                 d = json.loads(r['dettaglio_json']); 
-                # ### ARCHITECT NOTE: Using original index 'i' for safe deletion
                 d['idx'] = i 
                 if r['tipo'] == 'pasto':
                     cal += d.get('cal',0); pro += d.get('pro',0); carb += d.get('carb',0); fat += d.get('fat',0)
@@ -410,14 +400,11 @@ with tab1:
                     allenamenti.append(d)
             except: pass
 
-    # --- INIZIO NUOVA HERO DASHBOARD (FASE 2) ---
+    # --- NUOVA HERO DASHBOARD ---
     TC = user_settings['target_cal']
-    
-    # Calcolo percentuali per le barre
     perc_cal = min(cal / TC, 1.0) if TC > 0 else 0
     delta_cal = TC - cal
     
-    # LAYOUT A GRID
     c_hero_1, c_hero_2, c_hero_3 = st.columns([1.5, 1, 1])
     
     with c_hero_1:
@@ -442,9 +429,7 @@ with tab1:
     with c_hero_2:
         with st.container(border=True):
             TP = user_settings['target_pro']
-            # Gestione divisione per zero
             prog_p = min(pro/TP, 1.0) if TP > 0 else 0
-            
             st.metric("Proteine", f"{int(pro)}g", f"{int(TP - pro)}g left", delta_color="normal")
             st.progress(prog_p)
             
@@ -452,7 +437,6 @@ with tab1:
         with st.container(border=True):
             st.markdown("**💧 Idratazione**")
             cols_w = st.columns(3)
-            # Placeholder funzionale
             if cols_w[1].button("➕ 250ml", key="btn_water_sim"):
                 st.toast("Acqua registrata! (Simulazione)", icon="💧")
             st.caption("Obiettivo: 2.5 L")
@@ -460,9 +444,8 @@ with tab1:
 
     st.markdown("---")
     
-    # Riestetica Macro Secondari (Sotto la Hero)
+    # Riestetica Macro Secondari
     col_vis, col_kpi = st.columns([1, 1])
-    
     with col_vis:
          st.markdown("##### 🍰 Carboidrati")
          TCA = user_settings['target_carb']
@@ -477,33 +460,22 @@ with tab1:
          st.progress(pf)
          st.caption(f"{int(fat)} / {TF}g")
     
-    # --- FINE NUOVA HERO DASHBOARD ---
     st.markdown("---")
     st.subheader("🔥 La tua Costanza (Workout)")
     
     today = datetime.date.today()
-    # Genera ultimi 7 giorni
     last_7 = [today - datetime.timedelta(days=i) for i in range(6, -1, -1)]
     
-    # ------------------------------------------------------------
-    # ARCHITECT FIX: Filtro solo i giorni con 'tipo' == 'allenamento'
-    # ------------------------------------------------------------
     active_dates = set()
     if not df.empty:
-        # Prendo solo le date dove il tipo è 'allenamento'
         workout_days = df[df['tipo'] == 'allenamento']['data'].tolist()
         active_dates = set(workout_days)
-    # ------------------------------------------------------------
 
     cols = st.columns(7)
     for idx, day in enumerate(last_7):
         d_str = day.strftime("%Y-%m-%d")
         lbl = day.strftime("%a")
-        
-        # Ora is_active è True SOLO se quel giorno c'è un allenamento
         is_active = d_str in active_dates
-        
-        # Stile condizionale
         bg = "#0051FF" if is_active else "#f0f0f0"
         txt = "#ffffff" if is_active else "#999"
         bdr = "2px solid #0051FF" if day == today else "1px solid #ddd"
@@ -515,7 +487,6 @@ with tab1:
                 <b>{lbl}</b><br>{day.day}
             </div>
             """, unsafe_allow_html=True)
-    # --- FINE CONSISTENCY STREAK ---
     
     st.markdown("---")
     st.subheader("📉 Andamento Peso")
@@ -597,7 +568,6 @@ with tab2:
         cat = st.selectbox("Categoria", ["Colazione","Pranzo","Cena","Spuntino","Integrazione"], key="c_sel")
         
         if cat == "Integrazione":
-            # === INTEGRATORE ===
             sel_i = st.selectbox("Cerca Integratore", ["-- Manuale --"] + nomi_int, key="search_int")
             if "last_sel_int" not in st.session_state: st.session_state.last_sel_int = None
             if sel_i != st.session_state.last_sel_int:
@@ -619,17 +589,15 @@ with tab2:
                 nom = c1.text_input("Nome", key="i_nm")
                 q = c2.number_input(f"Qta ({u})", step=1.0, key="i_q") 
                 
-                # Calcolo real-time
                 val_k = base['k'] * q; val_p = base['p'] * q; val_c = base['c'] * q; val_f = base['f'] * q
                 st.caption(f"Totale: {int(val_k)} kcal | P:{int(val_p)} C:{int(val_c)} F:{int(val_f)}")
 
                 if st.button("Aggiungi", type="primary", use_container_width=True, key="bi"):
                     if nom: 
                         add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":q,"unita":u,"cal":val_k,"pro":val_p,"carb":val_c,"fat":val_f})
-                        clear_form_state(["i_nm", "i_q"]) # ### ARCHITECT NOTE: UX Fix
+                        clear_form_state(["i_nm", "i_q"])
                         st.rerun()
         else:
-            # === CIBO NORMALE ===
             st.info("💡 Compila i dati qui sotto per aggiungere un pasto.")
             with st.container(border=True):
                 sel = st.selectbox("🔍 Cerca Cibo", ["-- Manuale --"]+nomi_cibi, key="f_sel")
@@ -661,12 +629,11 @@ with tab2:
                     if nom: 
                         add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f})
                         st.success("Pasto aggiunto!")
-                        clear_form_state(["f_nm", "f_gr", "fk", "fp", "fc", "ff"]) # ### ARCHITECT NOTE: UX Fix
+                        clear_form_state(["f_nm", "f_gr", "fk", "fp", "fc", "ff"])
                         st.rerun()
 
     with c_db:
         st.subheader("💾 Gestione DB")
-        # ### ARCHITECT NOTE: Loading df_ex here to avoid Scope Error
         df_ex_gestione = get_data("esercizi") 
         if df_ex_gestione.empty: df_ex_gestione = pd.DataFrame(columns=["nome", "categoria"])
 
