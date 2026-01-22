@@ -36,7 +36,6 @@ st.markdown("""
 
     /* PULIZIA UI STREAMLIT */
     .stApp { background-color: var(--bg-app) !important; }
-    */ header { visibility: hidden; } /* Nasconde hamburger menu se non necessario */
     
     /* SIDEBAR */
     section[data-testid="stSidebar"] {
