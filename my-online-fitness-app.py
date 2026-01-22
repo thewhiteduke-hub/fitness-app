@@ -230,31 +230,38 @@ df = get_data("diario")
 user_settings = get_user_settings()
 
 # ==========================================
-# 📱 SIDEBAR
-# ==========================================
-# ==========================================
-# 📱 SIDEBAR
+# 📱 SIDEBAR CORRETTA
 # ==========================================
 with st.sidebar:
-    # GAMIFICATION HEADER
+    # 1. Calcoli Livello
     lvl, tot_xp, prog, curr_xp = calculate_user_level(df)
     
-    # ### ARCHITECT FIX: Logica per scegliere tra Foto Utente o Numero Livello
-    if user_settings.get('url_foto'):
-        # Se c'è la foto, usa un tag IMG HTML circolare
+    # 2. Recupero URL Foto sicuro (dal dizionario user_settings)
+    url_avatar = user_settings.get('url_foto', '').strip()
+    
+    # 3. Logica Avatar: Se c'è l'URL valido creo il tag IMG, altrimenti il cerchio col numero
+    if url_avatar:
+        # Avatar Immagine (Cerchio con bordo azzurro)
         avatar_html = f"""
-        <img src="{user_settings['url_foto']}" 
-             style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #38bdf8;">
+        <div style="
+            width: 50px; 
+            height: 50px; 
+            border-radius: 50%; 
+            border: 2px solid #38bdf8; 
+            background-image: url('{url_avatar}'); 
+            background-size: cover; 
+            background-position: center;">
+        </div>
         """
     else:
-        # Fallback: Cerchio blu con il numero del livello
+        # Avatar Default (Cerchio blu con livello)
         avatar_html = f"""
         <div style="background:#0051FF; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px; color:white;">
             {lvl}
         </div>
         """
 
-    # Inserimento HTML con la variabile avatar_html dinamica
+    # 4. RENDERIZZA LA CARD (IMPORTANTE: unsafe_allow_html=True)
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 20px; border-radius: 16px; color: white; margin-bottom: 20px; border: 1px solid #334155;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
