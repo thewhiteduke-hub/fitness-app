@@ -230,18 +230,19 @@ df = get_data("diario")
 user_settings = get_user_settings()
 
 # ==========================================
-# 📱 SIDEBAR CORRETTA
+# 📱 SIDEBAR (Codice Corretto)
 # ==========================================
 with st.sidebar:
-    # 1. Calcoli Livello
+    # 1. Calcoli Livello (Recuperiamo i dati dal DB)
     lvl, tot_xp, prog, curr_xp = calculate_user_level(df)
     
     # 2. Recupero URL Foto sicuro (dal dizionario user_settings)
+    # Usa .get() per evitare errori se la chiave non esiste
     url_avatar = user_settings.get('url_foto', '').strip()
     
-    # 3. Logica Avatar: Se c'è l'URL valido creo il tag IMG, altrimenti il cerchio col numero
+    # 3. Logica Avatar: Creiamo l'HTML per l'immagine o per il cerchio col numero
     if url_avatar:
-        # Avatar Immagine (Cerchio con bordo azzurro)
+        # Caso A: C'è la foto -> Mostriamo la foto nel cerchio
         avatar_html = f"""
         <div style="
             width: 50px; 
@@ -254,14 +255,15 @@ with st.sidebar:
         </div>
         """
     else:
-        # Avatar Default (Cerchio blu con livello)
+        # Caso B: Non c'è la foto -> Mostriamo il livello su sfondo blu
         avatar_html = f"""
         <div style="background:#0051FF; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px; color:white;">
             {lvl}
         </div>
         """
 
-    # 4. RENDERIZZA LA CARD (IMPORTANTE: unsafe_allow_html=True)
+    # 4. RENDERIZZA LA CARD (IL PASSAGGIO FONDAMENTALE!)
+    # Nota: unsafe_allow_html=True è obbligatorio qui
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 20px; border-radius: 16px; color: white; margin-bottom: 20px; border: 1px solid #334155;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -285,6 +287,7 @@ with st.sidebar:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
 
     st.markdown("---")
     st.markdown("**📅 Seleziona Data**")
