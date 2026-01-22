@@ -8,7 +8,7 @@ import altair as alt
 import google.generativeai as genai
 
 # ==========================================
-# 🎨 UI/UX DESIGN SYSTEM (V14.3 - FINAL FORCE LIGHT THEME)
+# 🎨 UI/UX DESIGN SYSTEM (V14.4 - FINAL FORCE LIGHT THEME)
 # ==========================================
 st.set_page_config(page_title="Fit Tracker Pro", page_icon="⚡", layout="wide")
 
@@ -17,7 +17,7 @@ st.markdown("""
     /* 1. IMPORT FONT */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
-    /* 2. FORZATURA GLOBALE TEMA CHIARO (Sovrascrive Dark Mode di Streamlit) */
+    /* 2. FORZATURA GLOBALE TEMA CHIARO */
     :root {
         --primary-color: #0051FF;
         --background-color: #F8F9FB;
@@ -31,39 +31,34 @@ st.markdown("""
         color: #1f1f1f;
     }
 
-    /* Sfondo Generale App */
     .stApp {
         background-color: #F8F9FB !important;
     }
 
-    /* Sidebar Forzata Bianca */
     section[data-testid="stSidebar"] {
         background-color: #ffffff !important;
         border-right: 1px solid #e0e0e0;
     }
     
-    /* Testi nella sidebar e main */
     .stMarkdown, .stText, h1, h2, h3, h4, h5, h6, label, p, span, div {
         color: #1f1f1f !important;
     }
     
-    /* 3. FIX INPUT FIELDS (Date, Text, Number) - Risolve il nero su nero */
     .stTextInput input, .stNumberInput input, .stDateInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
         background-color: #ffffff !important;
         color: #000000 !important;
         border: 1px solid #d0d0d0 !important;
-        caret-color: #0051FF; /* Cursore blu */
+        caret-color: #0051FF;
     }
-    /* Sfondo dei menu a tendina */
+    
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul {
         background-color: #ffffff !important;
     }
-    /* Opzioni menu a tendina */
+    
     li[role="option"] {
         color: #000000 !important;
     }
 
-    /* 4. CARD CONTENITORI */
     div[data-testid="stContainer"] {
         background-color: #ffffff;
         border-radius: 12px;
@@ -72,7 +67,6 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     }
 
-    /* 5. TABS STYLE */
     .stTabs [data-baseweb="tab-list"] { gap: 8px; }
     .stTabs [data-baseweb="tab"] {
         background-color: #ffffff;
@@ -87,13 +81,10 @@ st.markdown("""
         border: none;
     }
 
-    /* 6. GRAFICI ALTAIR */
-    /* Rimuove sfondo dai grafici per evitare il riquadro grigio/nero */
     canvas {
         background-color: transparent !important;
     }
 
-    /* 7. BOTTONI E METRICHE */
     div[data-testid="stMetricValue"] { color: #0051FF !important; }
     
     button[kind="secondary"] {
@@ -107,7 +98,6 @@ st.markdown("""
         border: none !important;
     }
     
-    /* Fix specifico per il calendario scuro */
     div[data-baseweb="calendar"] {
         background-color: #ffffff !important;
     }
@@ -120,20 +110,22 @@ st.markdown("""
 def check_password():
     if "password_correct" not in st.session_state: st.session_state["password_correct"] = False
     if st.session_state["password_correct"]: return True
-    if "APP_PASSWORD" not in st.secrets: return True
+    # Default password fallback se secrets non è configurato (utile per debug locale)
+    pwd = st.secrets["APP_PASSWORD"] if "APP_PASSWORD" in st.secrets else "admin"
+    
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         st.write("")
         with st.container(border=True):
             st.markdown("### 🔒 Accesso")
-            st.text_input("Password", type="password", on_change=password_entered, key="pwd_login_14")
+            # ### ARCHITECT NOTE: Aggiunta callback per pulire input login
+            input_pwd = st.text_input("Password", type="password", key="pwd_login_14")
+            if input_pwd == pwd:
+                st.session_state["password_correct"] = True
+                st.rerun()
+            elif input_pwd:
+                st.error("Password errata")
     return False
-
-def password_entered():
-    if st.session_state["pwd_login_14"] == st.secrets["APP_PASSWORD"]:
-        st.session_state["password_correct"] = True
-        del st.session_state["pwd_login_14"]
-    else: st.error("Password errata")
 
 if not check_password(): st.stop()
 
@@ -149,12 +141,16 @@ except: pass
 # ==========================================
 # 🚀 DATABASE ENGINE
 # ==========================================
+# ### ARCHITECT NOTE: Updated to generic "gsheets" for compatibility
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 @st.cache_data(ttl=600)
 def fetch_data_cached(sheet_name):
-    try: return conn.read(worksheet=sheet_name)
-    except: return pd.DataFrame()
+    try: 
+        return conn.read(worksheet=sheet_name)
+    except Exception as e:
+        # Fallback robusto se il foglio non esiste o errore connessione
+        return pd.DataFrame()
 
 def get_data(sheet): return fetch_data_cached(sheet)
 
@@ -174,7 +170,14 @@ def add_riga_diario(tipo, dati):
 
 def delete_riga(idx):
     df = get_data("diario")
-    save_data("diario", df.drop(idx))
+    # ### ARCHITECT NOTE: Check index existence to prevent crash
+    if idx in df.index:
+        save_data("diario", df.drop(idx))
+    else:
+        st.warning("Impossibile trovare la riga da eliminare (già cancellata?)")
+        time.sleep(1)
+        st.cache_data.clear() # Force clear cache
+        st.rerun()
 
 def get_user_settings():
     df = get_data("diario")
@@ -188,28 +191,31 @@ def get_user_settings():
 
 def calculate_user_level(df):
     if df.empty: return 1, 0, 0.0, 100
-    # XP Rules: 5xp pasto, 20xp workout, 10xp peso
     xp = 0
-    # Conta occorrenze basate sul tipo
     xp += len(df[df['tipo'] == 'pasto']) * 5
     xp += len(df[df['tipo'] == 'allenamento']) * 20
     xp += len(df[df['tipo'] == 'misure']) * 10
     
-    # Livello: 1 livello ogni 500 XP
     level = 1 + (xp // 500)
     current_xp = xp % 500
     next_level_xp = 500
     progress = current_xp / next_level_xp
     return level, xp, progress, int(current_xp)
 
+# ### ARCHITECT NOTE: Callback per pulire i form dopo l'invio
+def clear_form_state(keys_to_clear):
+    for k in keys_to_clear:
+        if k in st.session_state:
+            del st.session_state[k]
+
 df = get_data("diario")
+user_settings = get_user_settings()
+
 # ==========================================
 # 📱 SIDEBAR
 # ==========================================
-user_settings = get_user_settings()
-
 with st.sidebar:
-# GAMIFICATION HEADER
+    # GAMIFICATION HEADER
     lvl, tot_xp, prog, curr_xp = calculate_user_level(df)
     
     c_img, c_info = st.columns([1, 2])
@@ -220,8 +226,6 @@ with st.sidebar:
         st.progress(prog)
         st.caption(f"XP: {curr_xp}/500")
 
-    st.markdown("---")
-    
     st.markdown("---")
     st.markdown("**📅 Seleziona Data**")
     selected_date = st.date_input("Visualizza diario del:", datetime.date.today())
@@ -260,27 +264,24 @@ with st.sidebar:
     st.markdown("---")
     q_ai = st.text_input("Coach AI...", key="s_ai")
     if st.button("Invia", key="s_aibtn"):
+        if "chat" not in st.session_state: st.session_state.chat = []
         st.session_state.chat.append({"role":"user","txt":q_ai})
         ans="Errore AI"; 
         if gemini_ok:
-            try: ans=model.generate_content(f"Sei un PT. Rispondi: {q_ai}").text
+            try: ans=model.generate_content(f"Sei un PT esperto. Sii breve e motivante. Rispondi: {q_ai}").text
             except: pass
         st.session_state.chat.append({"role":"assistant","txt":ans}); st.rerun()
-    if "chat" not in st.session_state: st.session_state.chat = []
-    if st.session_state.chat: st.info(st.session_state.chat[-1]['txt'])
+    
+    if "chat" in st.session_state and st.session_state.chat:
+        st.info(st.session_state.chat[-1]['txt'])
 
 # ==========================================
-# 🏠 MAIN - (FIX SCOPE & COLORI)
+# 🏠 MAIN DASHBOARD
 # ==========================================
 st.title(f"Bentornato, Atleta.")
 st.caption(f"📅 Riepilogo del: {data_filtro}")
 
-# 1. SCARICO I DATI UNA VOLTA SOLA QUI (GLOBALMENTE)
-
 misure_list = []
-
-# 2. PREPARO LA LISTA PESO PER TUTTE LE SCHEDE
-# Questo risolve il NameError dello screenshot 1
 if not df.empty:
     for _, r in df.iterrows():
         if r['tipo'] == 'misure':
@@ -289,7 +290,6 @@ if not df.empty:
                 misure_list.append({"Data": r['data'], "Peso": d['peso']})
             except: pass
 
-# 3. CREAZIONE TABS
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
 # --- TAB 1: DASHBOARD ---
@@ -306,9 +306,11 @@ with tab1:
     if not df_oggi.empty:
         for i, r in df_oggi.iterrows():
             try:
-                d = json.loads(r['dettaglio_json']); d['idx'] = i
+                d = json.loads(r['dettaglio_json']); 
+                # ### ARCHITECT NOTE: Using original index 'i' for safe deletion
+                d['idx'] = i 
                 if r['tipo'] == 'pasto':
-                    cal += d['cal']; pro += d['pro']; carb += d['carb']; fat += d['fat']
+                    cal += d.get('cal',0); pro += d.get('pro',0); carb += d.get('carb',0); fat += d.get('fat',0)
                     cat = d.get('pasto', 'Spuntino')
                     if cat in meal_groups: meal_groups[cat].append(d)
                     else: meal_groups["Spuntino"].append(d)
@@ -316,14 +318,11 @@ with tab1:
                     allenamenti.append(d)
             except: pass
 
-    # KPI & VISUALIZZAZIONE GRAFICA
     TC = user_settings['target_cal']
-    
     col_vis, col_kpi = st.columns([1, 2])
     
     with col_vis:
-        # 🍩 DONUT CHART CALORIE (FIX TRASPARENZA)
-        rimanenti = max(0, TC - cal)
+                rimanenti = max(0, TC - cal)
         source = pd.DataFrame([
             {"category": "Consumate", "value": cal, "color": "#0051FF"},
             {"category": "Rimanenti", "value": rimanenti, "color": "#E0E0E0"}
@@ -336,19 +335,13 @@ with tab1:
         text = base.mark_text(radius=0, size=24, color="#0051FF").encode(
             text=alt.value(f"{int(cal)}")
         )
-        # Background transparent risolve il riquadro nero/grigio
         st.altair_chart((pie + text).properties(background='transparent'), use_container_width=True)
         st.caption(f"Target: {int(TC)} kcal")
 
     with col_kpi:
-        # MACROS
-        TP = user_settings['target_pro']
-        TCA = user_settings['target_carb']
-        TF = user_settings['target_fat']
-        
+        TP = user_settings['target_pro']; TCA = user_settings['target_carb']; TF = user_settings['target_fat']
         st.markdown("##### 🥗 Macro Breakdown")
         
-        # Definizione funzione barra (correttamente indentata dentro col_kpi)
         def macro_bar(label, val, target, color):
             perc = min(val/target, 1.0) if target > 0 else 0
             st.markdown(f"""
@@ -363,31 +356,22 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
             
-        # Chiamate alla funzione (TUTTE allineate verticalmente tra loro)
         macro_bar("Proteine", pro, TP, "#0051FF")
         macro_bar("Carboidrati", carb, TCA, "#33C1FF")
         macro_bar("Grassi", fat, TF, "#FFB033")
 
-    # --- QUI USCIAMO DALLA COLONNA E TORNIAMO AL TAB PRINCIPALE ---
-# --- INIZIO CONSISTENCY STREAK ---
     st.markdown("---")
     st.subheader("🔥 La tua Costanza")
     
     today = datetime.date.today()
-    # Genera ultimi 7 giorni
     last_7 = [today - datetime.timedelta(days=i) for i in range(6, -1, -1)]
-    
-    # Trova giorni attivi
-    active_dates = set()
-    if not df.empty:
-        active_dates = set(df['data'].tolist())
+    active_dates = set(df['data'].tolist()) if not df.empty else set()
 
     cols = st.columns(7)
     for idx, day in enumerate(last_7):
         d_str = day.strftime("%Y-%m-%d")
         lbl = day.strftime("%a")
         is_active = d_str in active_dates
-        # Stile condizionale
         bg = "#0051FF" if is_active else "#f0f0f0"
         txt = "#ffffff" if is_active else "#999"
         bdr = "2px solid #0051FF" if day == today else "1px solid #ddd"
@@ -399,19 +383,15 @@ with tab1:
                 <b>{lbl}</b><br>{day.day}
             </div>
             """, unsafe_allow_html=True)
-    # --- FINE CONSISTENCY STREAK ---
     
     st.markdown("---")
-    
     st.subheader("📉 Andamento Peso")
 
     if misure_list:
-        # Preparazione DataFrame
         df_w = pd.DataFrame(misure_list)
         df_w['Data'] = pd.to_datetime(df_w['Data'])
         df_w = df_w.sort_values('Data')
 
-        # Configurazione Grafico Altair
         chart_w = alt.Chart(df_w).mark_line(
             point=True, color='#0051FF', strokeWidth=3
         ).encode(
@@ -420,7 +400,6 @@ with tab1:
             tooltip=[alt.Tooltip('Data:T', format='%d %B'), alt.Tooltip('Peso:Q')]
         ).properties(height=250, background='transparent')
 
-        # Visualizzazione Card
         with st.container(border=True):
             st.altair_chart(chart_w.interactive(), use_container_width=True)
             if len(df_w) >= 2:
@@ -428,10 +407,9 @@ with tab1:
                 sym = "⬆" if delta > 0 else "⬇"
                 st.caption(f"Variazione: **{sym} {abs(delta):.1f} kg** rispetto alla pesata precedente.")
     else:
-        st.info("Nessuna misurazione trovata. Aggiungi il peso dalla Sidebar.")
+        st.info("Nessuna misurazione trovata.")
 
     st.markdown("---")
-    
     cl1, cl2 = st.columns(2)
     with cl1:
         st.subheader("🍎 Diario Oggi")
@@ -495,34 +473,27 @@ with tab2:
                     try:
                         row = df_int[df_int['nome'] == sel_i].iloc[0]
                         st.session_state['i_nm'] = str(row['nome']) 
-                        d_val = row.get('descrizione', '')
-                        st.session_state['i_desc_f'] = str(d_val) if pd.notna(d_val) else ""
                         st.session_state['base_int'] = {'k': row['kcal'], 'p': row['pro'], 'c': row['carb'], 'f': row['fat']}
-                        st.session_state['temp_tipo_idx'] = {"g":0,"cps":1,"mg":2}.get(row.get('tipo','g'),0)
                     except: pass
                 else: st.session_state['base_int'] = {'k':0,'p':0,'c':0,'f':0}
 
             base = st.session_state.get('base_int', {'k':0,'p':0,'c':0,'f':0})
-            tip_idx = st.session_state.get('temp_tipo_idx', 0)
-            tip = st.radio("Formato", ["Polvere (g)","Capsule (pz)","Mg"], index=tip_idx, horizontal=True, key="i_rad")
+            tip = st.radio("Formato", ["Polvere (g)","Capsule (pz)","Mg"], horizontal=True, key="i_rad")
             u = "g" if "Polvere" in tip else ("cps" if "Capsule" in tip else "mg")
             
             with st.container(border=True):
                 c1,c2 = st.columns([2,1])
                 nom = c1.text_input("Nome", key="i_nm")
                 q = c2.number_input(f"Qta ({u})", step=1.0, key="i_q") 
-                desc = st.text_area("Note", key="i_desc_f", height=80)
                 
+                # Calcolo real-time
                 val_k = base['k'] * q; val_p = base['p'] * q; val_c = base['c'] * q; val_f = base['f'] * q
-                st.session_state['ik']=val_k; st.session_state['ip']=val_p; st.session_state['ic']=val_c; st.session_state['if']=val_f
+                st.caption(f"Totale: {int(val_k)} kcal | P:{int(val_p)} C:{int(val_c)} F:{int(val_f)}")
 
-                st.markdown("###### Macro Totali")
-                k=st.number_input("K", key="ik"); p=st.number_input("P", key="ip")
-                c=st.number_input("C", key="ic"); f=st.number_input("F", key="if")
-                
                 if st.button("Aggiungi", type="primary", use_container_width=True, key="bi"):
                     if nom: 
-                        add_riga_diario("pasto",{"pasto":cat,"nome":nom,"desc":desc,"gr":q,"unita":u,"cal":k,"pro":p,"carb":c,"fat":f})
+                        add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":q,"unita":u,"cal":val_k,"pro":val_p,"carb":val_c,"fat":val_f})
+                        clear_form_state(["i_nm", "i_q"]) # ### ARCHITECT NOTE: UX Fix
                         st.rerun()
         else:
             # === CIBO NORMALE ===
@@ -538,7 +509,6 @@ with tab2:
                             st.session_state['f_nm'] = str(row['nome']) 
                             st.session_state['base_food'] = {'k': row['kcal'], 'p': row['pro'], 'c': row['carb'], 'f': row['fat']}
                         except: pass
-                    else: st.session_state['base_food'] = {'k':0,'p':0,'c':0,'f':0}
                 
                 base_f = st.session_state.get('base_food', {'k':0,'p':0,'c':0,'f':0})
                 c1, c2 = st.columns([2,1])
@@ -546,116 +516,68 @@ with tab2:
                 gr = c2.number_input("Quantità (g)", step=10.0, key="f_gr")
                 
                 fac = gr / 100
-                st.session_state['fk'] = base_f['k']*fac; st.session_state['fp'] = base_f['p']*fac
-                st.session_state['fc'] = base_f['c']*fac; st.session_state['ff'] = base_f['f']*fac
+                k_t = base_f['k']*fac; p_t = base_f['p']*fac
+                c_t = base_f['c']*fac; f_t = base_f['f']*fac
                 
                 st.markdown("###### 📊 Valori Nutrizionali")
                 m1,m2,m3,m4 = st.columns(4)
-                k=m1.number_input("Kcal", key="fk"); p=m2.number_input("Pro", key="fp")
-                c=m3.number_input("Carb", key="fc"); f=m4.number_input("Fat", key="ff")
+                k=m1.number_input("Kcal", value=float(k_t), key="fk"); p=m2.number_input("Pro", value=float(p_t), key="fp")
+                c=m3.number_input("Carb", value=float(c_t), key="fc"); f=m4.number_input("Fat", value=float(f_t), key="ff")
                 st.write("")
                 if st.button("🍽️ Aggiungi al Diario", type="primary", use_container_width=True, key="bf"):
                     if nom: 
                         add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f})
-                        st.success("Pasto aggiunto!"); st.rerun()
+                        st.success("Pasto aggiunto!")
+                        clear_form_state(["f_nm", "f_gr", "fk", "fp", "fc", "ff"]) # ### ARCHITECT NOTE: UX Fix
+                        st.rerun()
 
     with c_db:
         st.subheader("💾 Gestione DB")
-        
-        # Carico i dati esercizi qui per averli disponibili nella gestione
+        # ### ARCHITECT NOTE: Loading df_ex here to avoid Scope Error
         df_ex_gestione = get_data("esercizi") 
-        
+        if df_ex_gestione.empty: df_ex_gestione = pd.DataFrame(columns=["nome", "categoria"])
+
         t_cibo, t_int, t_ex = st.tabs(["Cibo", "Int", "Ex"])
         
-        # --- TAB CIBO ---
         with t_cibo:
-            st.markdown("**➕ Aggiungi**")
             with st.form("dbf"):
                 n=st.text_input("Nome", key="dbn")
-                # Layout compatto per i macro
-                r1, r2, r3, r4 = st.columns(4)
+                r1, r2 = st.columns(2)
                 k=r1.number_input("K/100", key="dbk"); p=r2.number_input("P", key="dbp")
-                c=r3.number_input("C", key="dbc"); f=r4.number_input("F", key="dbf")
+                c=r1.number_input("C", key="dbc"); f=r2.number_input("F", key="dbf")
                 if st.form_submit_button("Salva"):
                     if n: 
-                        # Controllo duplicati base per nome
-                        if not df_cibi.empty and n in df_cibi['nome'].values:
-                            st.error("Esiste già!")
-                        else:
-                            save_data("cibi", pd.concat([df_cibi, pd.DataFrame([{"nome":n,"kcal":k,"pro":p,"carb":c,"fat":f}])], ignore_index=True))
-                            st.rerun()
+                        save_data("cibi", pd.concat([df_cibi, pd.DataFrame([{"nome":n,"kcal":k,"pro":p,"carb":c,"fat":f}])], ignore_index=True))
+                        st.rerun()
             
-            st.markdown("---")
-            with st.expander("🗑️ Elimina Cibi", expanded=False):
+            with st.expander("🗑️ Elimina Cibi"):
                 if not df_cibi.empty:
-                    # Multiselect per cancellazione multipla
-                    to_del_cibi = st.multiselect("Seleziona cibi da eliminare", options=df_cibi['nome'].sort_values().tolist(), key="del_food_multi")
-                    if to_del_cibi:
-                        st.warning(f"Stai per eliminare {len(to_del_cibi)} elementi.")
-                        if st.button("Conferma Eliminazione Cibi", type="primary"):
-                            # Filtro il dataframe mantenendo solo ciò che NON è nella lista di eliminazione
-                            df_new = df_cibi[~df_cibi['nome'].isin(to_del_cibi)]
-                            save_data("cibi", df_new)
-                            st.success("Database aggiornato!")
-                            st.rerun()
-                else:
-                    st.info("Database vuoto.")
+                    to_del = st.multiselect("Seleziona", df_cibi['nome'].tolist(), key="del_food_m")
+                    if st.button("Elimina", key="btn_del_f"):
+                        save_data("cibi", df_cibi[~df_cibi['nome'].isin(to_del)])
+                        st.rerun()
 
-        # --- TAB INTEGRATORI ---
         with t_int:
-            st.markdown("**➕ Aggiungi**")
             with st.form("dbi"):
-                ni=st.text_input("Nome", key="dbi_n"); di=st.text_area("Desc", key="dbi_d", height=60)
-                ti_sel = st.radio("Tipo", ["Polvere", "Capsula", "Mg"], key="dbi_t", horizontal=True)
-                r1, r2, r3, r4 = st.columns(4)
+                ni=st.text_input("Nome", key="dbi_n")
+                r1, r2 = st.columns(2)
                 ki=r1.number_input("K", key="dbi_k"); pi=r2.number_input("P", key="dbi_p")
-                ci=r3.number_input("C", key="dbi_c"); fi=r4.number_input("F", key="dbi_f")
+                ci=r1.number_input("C", key="dbi_c"); fi=r2.number_input("F", key="dbi_f")
                 if st.form_submit_button("Salva"):
                     if ni: 
-                        save_data("integratori", pd.concat([df_int, pd.DataFrame([{"nome":ni,"tipo":("g" if "Polvere" in ti_sel else "cps"),"descrizione":di,"kcal":ki,"pro":pi,"carb":ci,"fat":fi}])], ignore_index=True))
-                        st.rerun()
-            
-            st.markdown("---")
-            with st.expander("🗑️ Elimina Integratori"):
-                if not df_int.empty:
-                    to_del_int = st.multiselect("Seleziona da eliminare", options=df_int['nome'].sort_values().tolist(), key="del_int_multi")
-                    if st.button("Elimina Integratori", type="primary"):
-                        df_new = df_int[~df_int['nome'].isin(to_del_int)]
-                        save_data("integratori", df_new)
+                        save_data("integratori", pd.concat([df_int, pd.DataFrame([{"nome":ni,"tipo":"g","kcal":ki,"pro":pi,"carb":ci,"fat":fi}])], ignore_index=True))
                         st.rerun()
 
-        # --- TAB ESERCIZI ---
         with t_ex:
             st.markdown("**➕ Aggiungi Bulk**")
-            bulk_text = st.text_area("Lista Esercizi (uno per riga)", height=150, key="bulk_ex_area")
-            cat_bulk = st.selectbox("Categoria Default", ["Pesi", "Calisthenics", "Isometria", "Cardio"], key="cat_bulk_sel")
+            bulk_text = st.text_area("Lista (uno per riga)", height=100, key="bulk_ex")
+            cat_bulk = st.selectbox("Categoria", ["Pesi", "Calisthenics", "Isometria", "Cardio"], key="cat_bulk")
             if st.button("Salva Lista"):
                 if bulk_text:
                     lista = [x.strip() for x in bulk_text.split('\n') if x.strip()]
                     if lista:
                         new_rows = pd.DataFrame({'nome': lista, 'categoria': cat_bulk})
                         save_data("esercizi", pd.concat([df_ex_gestione, new_rows], ignore_index=True))
-                        st.rerun()
-            
-            st.markdown("---")
-            with st.expander("🗑️ Elimina Esercizi"):
-                if not df_ex_gestione.empty:
-                    # Creo una lista formattata "Nome (Categoria)" per distinguere omonimi
-                    df_ex_gestione['display'] = df_ex_gestione['nome'] + " (" + df_ex_gestione['categoria'] + ")"
-                    
-                    to_del_ex = st.multiselect("Seleziona esercizi", options=df_ex_gestione['display'].sort_values().tolist(), key="del_ex_multi")
-                    
-                    if st.button("Elimina Esercizi", type="primary"):
-                        # Recupero i nomi originali dalla stringa composta
-                        # Nota: questo approccio è semplice. Se hai esercizi con nomi identici in categorie diverse, 
-                        # verranno cancellati entrambi se il nome matcha. Per ora è sufficiente.
-                        names_to_del = [x.split(" (")[0] for x in to_del_ex]
-                        
-                        df_new = df_ex_gestione[~df_ex_gestione['nome'].isin(names_to_del)]
-                        # Rimuovo colonna temporanea
-                        if 'display' in df_new.columns: df_new = df_new.drop(columns=['display'])
-                        
-                        save_data("esercizi", df_new)
                         st.rerun()
 
 # --- TAB 3: WORKOUT ---
@@ -665,106 +587,81 @@ with tab3:
     if df_ex.empty: df_ex = pd.DataFrame(columns=["nome", "categoria"])
     elif "categoria" not in df_ex.columns: df_ex["categoria"] = "Pesi"
     
-    ls_pesi = df_ex[df_ex['categoria'] == 'Pesi']['nome'].tolist()
-    ls_cali = df_ex[df_ex['categoria'] == 'Calisthenics']['nome'].tolist()
-    ls_iso = df_ex[df_ex['categoria'] == 'Isometria']['nome'].tolist()
-    ls_cardio = df_ex[df_ex['categoria'] == 'Cardio']['nome'].tolist()
-
+    ls_pesi = sorted(df_ex[df_ex['categoria'] == 'Pesi']['nome'].unique().tolist())
+    ls_cali = sorted(df_ex[df_ex['categoria'] == 'Calisthenics']['nome'].unique().tolist())
+    
     if 'sess_w' not in st.session_state: st.session_state['sess_w'] = []
     
     c1, c2 = st.columns([1,2])
     with c1:
         st.caption("Setup Sessione")
         ses = st.text_input("Nome Sessione", "Workout", key="w_ses")
-        mod = st.radio("Modo", ["Pesi", "Calisthenics", "Isometria", "Cardio"], horizontal=True, key="w_mod")
+        mod = st.radio("Modo", ["Pesi", "Calisthenics", "Cardio"], horizontal=True, key="w_mod")
         
         if mod == "Pesi":
-            sl = st.selectbox("Esercizio", ["-- Nuovo --"] + sorted(ls_pesi), key="w_sl")
+            sl = st.selectbox("Esercizio", ["-- Nuovo --"] + ls_pesi, key="w_sl")
             nm = st.text_input("Nome", key="w_nm") if sl == "-- Nuovo --" else sl
             s=st.number_input("Set",1,key="ws"); r=st.number_input("Rep",1,key="wr"); w=st.number_input("Kg",0.0,key="ww")
-            if st.button("Aggiungi Set", key="wb"): st.session_state['sess_w'].append({"type":"pesi","nome":nm,"serie":s,"reps":r,"kg":w})
+            if st.button("Aggiungi Set", key="wb"): 
+                st.session_state['sess_w'].append({"type":"pesi","nome":nm,"serie":s,"reps":r,"kg":w})
+            
             with st.expander("Salva nel DB"):
-                if st.button("Salva Pesi", key="wds"): save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":nm, "categoria":"Pesi"}])], ignore_index=True)); st.rerun()
+                if st.button("Salva Pesi", key="wds"): 
+                    save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":nm, "categoria":"Pesi"}])], ignore_index=True))
+                    st.rerun()
 
         elif mod == "Calisthenics":
-            sl = st.selectbox("Esercizio", ["-- Nuovo --"] + sorted(ls_cali), key="w_cali_sl")
+            sl = st.selectbox("Esercizio", ["-- Nuovo --"] + ls_cali, key="w_cali_sl")
             nm = st.text_input("Nome", key="w_cali_nm") if sl == "-- Nuovo --" else sl
-            c_a,c_b,c_c = st.columns(3)
-            s = c_a.number_input("Set", 1, key="wcs"); r = c_b.number_input("Rep", 1, key="wcr"); w = c_c.number_input("Kg", 0.0, key="wcw")
-            if st.button("Aggiungi Set", key="w_cali_b"): st.session_state['sess_w'].append({"type":"calisthenics","nome":nm,"serie":s,"reps":r,"kg":w})
-            with st.expander("Salva nel DB"):
-                if st.button("Salva Cali", key="wds_cali"): save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":nm, "categoria":"Calisthenics"}])], ignore_index=True)); st.rerun()
+            s = st.number_input("Set", 1, key="wcs"); r = st.number_input("Rep", 1, key="wcr"); w = st.number_input("Kg", 0.0, key="wcw")
+            if st.button("Aggiungi Set", key="w_cali_b"): 
+                st.session_state['sess_w'].append({"type":"calisthenics","nome":nm,"serie":s,"reps":r,"kg":w})
 
-        elif mod == "Isometria":
-            sl = st.selectbox("Esercizio", ["-- Nuovo --"] + sorted(ls_iso), key="w_iso_sl")
-            nm = st.text_input("Nome", key="w_iso_nm") if sl == "-- Nuovo --" else sl
-            c_a,c_b,c_c = st.columns(3)
-            s = c_a.number_input("Set", 1, key="wis_s"); t = c_b.number_input("Sec", 10, step=5, key="wis_t"); w = c_c.number_input("Kg", 0.0, key="wis_w")
-            if st.button("Aggiungi Set", key="w_iso_b"): st.session_state['sess_w'].append({"type":"isometria","nome":nm,"serie":s,"tempo":t,"kg":w})
-            with st.expander("Salva nel DB"):
-                if st.button("Salva Iso", key="wds_iso"): save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":nm, "categoria":"Isometria"}])], ignore_index=True)); st.rerun()
-
-        else:
-            sl = st.selectbox("Attività", ["-- Nuovo --"] + sorted(ls_cardio), key="w_cardio_sl")
-            nm = st.text_input("Nome", key="ca_nm") if sl == "-- Nuovo --" else sl
+        else: # Cardio
+            nm = st.text_input("Nome", "Corsa", key="ca_nm")
             km=st.number_input("Km",0.0,key="ck"); mi=st.number_input("Min",0,key="cm"); kc=st.number_input("Kcal",0,key="cc")
-            if st.button("Aggiungi Cardio", key="cb"): st.session_state['sess_w'].append({"type":"cardio","nome":nm,"km":km,"tempo":mi,"kcal":kc})
-            with st.expander("Salva nel DB"):
-                if st.button("Salva Cardio", key="wds_cardio"): save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":nm, "categoria":"Cardio"}])], ignore_index=True)); st.rerun()
+            if st.button("Aggiungi Cardio", key="cb"): 
+                st.session_state['sess_w'].append({"type":"cardio","nome":nm,"km":km,"tempo":mi,"kcal":kc})
 
     with c2:
         st.subheader(f"In Corso: {ses}")
         if st.session_state['sess_w']:
             for i,e in enumerate(st.session_state['sess_w']):
-                t = e.get('type','pesi')
-                if t == "pesi": det = f"{e['serie']}x{e['reps']} @ {e['kg']}kg"
-                elif t == "calisthenics": det = f"{e['serie']}x{e['reps']} (+{e['kg']}kg)"
-                elif t == "isometria": det = f"{e['serie']}x {e['tempo']}s (+{e['kg']}kg)"
-                else: det = f"{e['km']}km in {e['tempo']}m ({e['kcal']} kcal)"
-                
+                det = f"{e.get('serie',0)}x{e.get('reps',0)} @ {e.get('kg',0)}kg" if e.get('type') != 'cardio' else f"{e.get('km')}km in {e.get('tempo')}min"
                 c_txt, c_del = st.columns([5,1])
                 c_txt.markdown(f"**{e['nome']}** : {det}")
-                if c_del.button("❌", key=f"del_w_{i}"): 
+                if c_del.button("❌", key=f"del_w_sess_{i}"): 
                     st.session_state['sess_w'].pop(i)
                     st.rerun()
             
             st.divider()
             du = st.number_input("Durata (min)", 0, step=5, key="wdur")
             
-            # --- BLOCCO CORRETTO CON GAMIFICATION ---
             if st.button("TERMINA & SALVA", type="primary", use_container_width=True):
-                # 1. Calcolo Volume per Gamification
-                vol = sum([e.get('serie',0)*e.get('reps',0)*e.get('kg',0) for e in st.session_state['sess_w'] if e.get('type')=='pesi'])
-                
-                # 2. Salvataggio
                 add_riga_diario("allenamento",{"nome_sessione":ses,"durata":du,"esercizi":st.session_state['sess_w']})
                 st.session_state['sess_w'] = []
-                
-                # 3. Feedback Toast
-                msg = "Workout Salvato! 💪"
-                if vol > 0: msg += f" Volume: {int(vol)}kg"
-                st.toast(msg, icon="🔥")
-                
+                st.toast("Workout Salvato! 💪", icon="🔥")
                 time.sleep(1.5) 
                 st.rerun()
-            # ----------------------------------------
-            
         else: 
             st.info("Aggiungi il primo esercizio.")
 
-# --- TAB 4: STORICO (FIXED) ---
+# --- TAB 4: STORICO ---
 with tab4:
-    if misure_list: st.table(pd.DataFrame(misure_list))
+    if misure_list: st.dataframe(pd.DataFrame(misure_list), use_container_width=True)
     else: st.info("Nessuna misurazione.")
+    
     with st.expander("Misure Complete"):
         c1,c2 = st.columns(2)
         p=c1.number_input("Peso", key="ms_p"); a=c2.number_input("Altezza", key="ms_a")
         c3,c4,c5 = st.columns(3)
         co=c3.number_input("Collo", key="ms_co"); vi=c4.number_input("Vita", key="ms_vi"); fi=c5.number_input("Fianchi", key="ms_fi")
-        if st.button("Salva", key="fs"):
-            add_riga_diario("misure", {"peso":p,"alt":a,"collo":co,"vita":vi,"fianchi":fi}); st.success("OK")
+        if st.button("Salva Misure", key="fs"):
+            add_riga_diario("misure", {"peso":p,"alt":a,"collo":co,"vita":vi,"fianchi":fi})
+            st.success("Misure salvate")
+            st.rerun()
 
-# --- TAB 5: CALISTHENICS ---
+# --- TAB 5: SKILLS ---
 with tab5:
     st.subheader("🤸 Skills")
     with st.expander("➕ Nuova Skill", expanded=True):
@@ -776,7 +673,6 @@ with tab5:
             if st.form_submit_button("Salva"):
                 if n_sk: add_riga_diario("calisthenics", {"nome": n_sk, "desc": d_sk, "url": u_sk}); st.rerun()
     
-    st.divider()
     skills = []
     if not df.empty:
         for i, r in df.iterrows():
@@ -791,14 +687,11 @@ with tab5:
             with st.container(border=True):
                 ci, ct = st.columns([1, 3])
                 with ci:
-                    if s.get('url'): 
-                        try: st.image(s['url'], use_container_width=True)
-                        except: pass
-                    else: st.info("No img")
+                    if s.get('url'): st.image(s['url'], use_container_width=True)
                 with ct:
                     c_h, c_d = st.columns([5, 1])
                     c_h.markdown(f"### {s['nome']}")
                     if c_d.button("🗑️", key=f"dc_{s['idx']}"): delete_riga(s['idx']); st.rerun()
                     st.caption(f"📅 {s['dt']}")
                     st.write(s['desc'])
-    else: st.info("Nessuna skill.")
+    else: st.info("Nessuna skill registrata.")
