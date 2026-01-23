@@ -362,7 +362,7 @@ if not df.empty:
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
 # --- TAB 1: DASHBOARD (CODICE AGGIORNATO v14.5) ---
-    with tab1:
+with tab1:
         # 1. Recupero dati giornalieri
         df_oggi = df[df['data'] == data_filtro] if not df.empty else pd.DataFrame()
         
