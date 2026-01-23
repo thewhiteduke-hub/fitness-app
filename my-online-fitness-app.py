@@ -361,79 +361,95 @@ if not df.empty:
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🍎 Alimentazione", "🏋️ Workout", "📏 Storico", "🤸 Calisthenics"])
 
-# --- TAB 1: DASHBOARD ---
-with tab1:
-    df_oggi = df[df['data'] == data_filtro] if not df.empty else pd.DataFrame()
-    
-    cal = pro = carb = fat = 0
-    meal_groups = {"Colazione": [], "Pranzo": [], "Cena": [], "Spuntino": [], "Integrazione": []}
-    allenamenti = []
-    water_today = 0 # [NEW] Variabile accumulo acqua
-    
-    if not df_oggi.empty:
-        for i, r in df_oggi.iterrows():
-            d = safe_parse_json(r['dettaglio_json'])
-            if not d: continue
-            d['idx'] = i 
-            
-            if r['tipo'] == 'pasto':
-                cal += d.get('cal',0); pro += d.get('pro',0); carb += d.get('carb',0); fat += d.get('fat',0)
-                cat = d.get('pasto', 'Spuntino')
-                if cat in meal_groups: meal_groups[cat].append(d)
-                else: meal_groups["Spuntino"].append(d)
-            elif r['tipo'] == 'allenamento':
-                allenamenti.append(d)
-            elif r['tipo'] == 'acqua':
-                water_today += d.get('ml', 0)
+# --- TAB 1: DASHBOARD (CODICE AGGIORNATO v14.5) ---
+    with tab1:
+        # 1. Recupero dati giornalieri
+        df_oggi = df[df['data'] == data_filtro] if not df.empty else pd.DataFrame()
+        
+        cal = pro = carb = fat = 0
+        meal_groups = {"Colazione": [], "Pranzo": [], "Cena": [], "Spuntino": [], "Integrazione": []}
+        allenamenti = []
+        water_today = 0
+        
+        if not df_oggi.empty:
+            for i, r in df_oggi.iterrows():
+                try:
+                    d = json.loads(r['dettaglio_json']) # O usa safe_parse_json se l'hai definita
+                    d['idx'] = i 
+                    
+                    if r['tipo'] == 'pasto':
+                        cal += d.get('cal',0); pro += d.get('pro',0); carb += d.get('carb',0); fat += d.get('fat',0)
+                        cat = d.get('pasto', 'Spuntino')
+                        if cat in meal_groups: meal_groups[cat].append(d)
+                        else: meal_groups["Spuntino"].append(d)
+                    elif r['tipo'] == 'allenamento':
+                        allenamenti.append(d)
+                    elif r['tipo'] == 'acqua':
+                        water_today += d.get('ml', 0)
+                except: pass
 
-    # --- HERO DASHBOARD ---
-    TC = user_settings['target_cal']
-    perc_cal = min(cal / TC, 1.0) if TC > 0 else 0
-    delta_cal = TC - cal
-    
-    c_hero_1, c_hero_2, c_hero_3 = st.columns([1.5, 1, 1])
-    
-    with c_hero_1:
-        with st.container(border=True):
-            st.markdown(f"""
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                    <span style="color:#6B7280; font-size:14px; font-weight:600;">CALORIE GIORNALIERE</span>
-                    <h1 style="margin:0; font-size:36px; color:#111827;">{int(cal)} <span style="font-size:18px; color:#9CA3AF;">/ {TC}</span></h1>
+        # 2. LOGICA HERO SECTION (Sostituisce Altair)
+        TC = user_settings['target_cal']
+        
+        # Calcolo percentuali e delta
+        perc_cal = min(cal / TC, 1.0) if TC > 0 else 0
+        delta_cal = TC - cal
+        state_color = "#0051FF" if delta_cal >= 0 else "#EF4444" # Blu se sei dentro, Rosso se sfori
+        label_state = f"{int(delta_cal)} left" if delta_cal >= 0 else f"{abs(int(delta_cal))} over"
+        bg_state = "#E5F0FF" if delta_cal >= 0 else "#FEE2E2"
+
+        # Layout a 3 colonne per la Hero Section
+        c_hero_1, c_hero_2, c_hero_3 = st.columns([1.5, 1, 1])
+        
+        # COLONNA 1: CARD CALORIE (Nuova Grafica HTML)
+        with c_hero_1:
+            with st.container(border=True):
+                st.markdown(f"""
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                    <div>
+                        <span style="color:#6B7280; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Calorie Giornaliere</span>
+                        <div style="display:flex; align-items:baseline; gap:8px;">
+                            <h1 style="margin:0; font-size:32px; font-weight:800; color:#111827;">{int(cal)}</h1>
+                            <span style="font-size:16px; color:#9CA3AF; font-weight:500;">/ {int(TC)}</span>
+                        </div>
+                    </div>
+                    <div style="background:{bg_state}; padding:6px 14px; border-radius:20px; border:1px solid {state_color}20;">
+                        <span style="color:{state_color}; font-weight:700; font-size:14px;">
+                            {label_state}
+                        </span>
+                    </div>
                 </div>
-                <div style="background:{'#E5F0FF' if delta_cal > 0 else '#FEE2E2'}; padding:8px 16px; border-radius:20px;">
-                    <span style="color:{'#0051FF' if delta_cal > 0 else '#EF4444'}; font-weight:700;">
-                        {f'{int(delta_cal)} left' if delta_cal >= 0 else f'{abs(int(delta_cal))} over'}
-                    </span>
+                <div style="width:100%; background:#F3F4F6; height:10px; border-radius:10px; overflow:hidden;">
+                    <div style="width:{perc_cal*100}%; background:linear-gradient(90deg, #0051FF, #00C6FF); height:100%; border-radius:10px; transition:width 0.5s ease;"></div>
                 </div>
-            </div>
-            <div style="margin-top:15px; width:100%; background:#F3F4F6; height:12px; border-radius:10px;">
-                <div style="width:{perc_cal*100}%; background:linear-gradient(90deg, #0051FF, #00C6FF); height:12px; border-radius:10px; transition:width 1s ease;"></div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    with c_hero_2:
-        with st.container(border=True):
-            TP = user_settings['target_pro']
-            prog_p = min(pro/TP, 1.0) if TP > 0 else 0
-            st.metric("Proteine", f"{int(pro)}g", f"{int(TP - pro)}g left", delta_color="normal")
-            st.progress(prog_p)
-            
-    with c_hero_3:
-        with st.container(border=True):
-            st.markdown("**💧 Idratazione**")
-            cols_w = st.columns(3)
-            # [FIX] Pulsante acqua funzionante
-            if cols_w[1].button("➕ 250", key="btn_water_real"):
-                add_riga_diario("acqua", {"ml": 250}, data_filtro)
-                st.toast("Idratazione registrata! 💧")
-                time.sleep(0.5)
-                st.rerun()
+                """, unsafe_allow_html=True)
+
+        # COLONNA 2: PROTEINE
+        with c_hero_2:
+            with st.container(border=True):
+                TP = user_settings['target_pro']
+                prog_p = min(pro/TP, 1.0) if TP > 0 else 0
+                # Uso st.metric nativo che è pulito ed efficace
+                st.metric("Proteine", f"{int(pro)}g", f"{int(TP - pro)}g left", delta_color="normal")
+                st.progress(prog_p)
                 
-            target_water = 2500
-            prog_w = min(water_today / target_water, 1.0) if target_water > 0 else 0
-            st.caption(f"{water_today} / {target_water} ml")
-            st.progress(prog_w) 
+        # COLONNA 3: IDRATAZIONE
+        with c_hero_3:
+            with st.container(border=True):
+                st.markdown("**💧 Acqua**")
+                cw1, cw2 = st.columns([1, 2])
+                with cw1:
+                    # Pulsante rapido
+                    if st.button("➕", key="btn_w_quick", help="Aggiungi 250ml"):
+                        add_riga_diario("acqua", {"ml": 250}) # Assicurati che add_riga_diario supporti 'acqua'
+                        st.toast("Idratazione +250ml")
+                        time.sleep(0.5)
+                        st.rerun()
+                with cw2:
+                    st.caption(f"{int(water_today)} / 2500 ml")
+                
+                prog_w = min(water_today / 2500, 1.0)
+                st.progress(prog_w)
 
     st.markdown("---")
     
