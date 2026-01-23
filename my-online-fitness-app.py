@@ -572,7 +572,22 @@ with tab2:
         st.subheader("Inserimento")
         cat = st.selectbox("Categoria", ["Colazione","Pranzo","Cena","Spuntino","Integrazione"], key="c_sel")
         
+        # === HELPER PER CALCOLO LIVE E FORZATURA STATO ===
+        def update_macro_values():
+            # Recupera la base nutrizionale salvata nello stato
+            base = st.session_state.get('base_food', {'k':0,'p':0,'c':0,'f':0})
+            # Recupera la quantità attuale inserita dall'utente
+            grams = st.session_state.get('f_gr', 0.0)
+            factor = grams / 100
+            
+            # Forza l'aggiornamento delle chiavi di sessione dei macro
+            st.session_state['fk'] = base['k'] * factor
+            st.session_state['fp'] = base['p'] * factor
+            st.session_state['fc'] = base['c'] * factor
+            st.session_state['ff'] = base['f'] * factor
+
         if cat == "Integrazione":
+            # === INTEGRATORE (LOGICA ESISTENTE) ===
             sel_i = st.selectbox("Cerca Integratore", ["-- Manuale --"] + nomi_int, key="search_int")
             if "last_sel_int" not in st.session_state: st.session_state.last_sel_int = None
             if sel_i != st.session_state.last_sel_int:
@@ -594,6 +609,7 @@ with tab2:
                 nom = c1.text_input("Nome", key="i_nm")
                 q = c2.number_input(f"Qta ({u})", step=1.0, key="i_q") 
                 
+                # Calcolo visuale per integratori
                 val_k = base['k'] * q; val_p = base['p'] * q; val_c = base['c'] * q; val_f = base['f'] * q
                 st.caption(f"Totale: {int(val_k)} kcal | P:{int(val_p)} C:{int(val_c)} F:{int(val_f)}")
 
@@ -603,9 +619,12 @@ with tab2:
                         clear_form_state(["i_nm", "i_q"])
                         st.rerun()
         else:
+            # === CIBO NORMALE (CORRETTO CON CALLBACK) ===
             st.info("💡 Compila i dati qui sotto per aggiungere un pasto.")
             with st.container(border=True):
                 sel = st.selectbox("🔍 Cerca Cibo", ["-- Manuale --"]+nomi_cibi, key="f_sel")
+                
+                # Logica cambio selezione
                 if "last_sel_food" not in st.session_state: st.session_state.last_sel_food = None
                 if sel != st.session_state.last_sel_food:
                     st.session_state.last_sel_food = sel
@@ -614,31 +633,43 @@ with tab2:
                             row = df_cibi[df_cibi['nome'] == sel].iloc[0]
                             st.session_state['f_nm'] = str(row['nome']) 
                             st.session_state['base_food'] = {'k': row['kcal'], 'p': row['pro'], 'c': row['carb'], 'f': row['fat']}
+                            # Se l'utente seleziona un cibo nuovo e c'è già una quantità, ricalcola subito
+                            if st.session_state.get('f_gr', 0) > 0:
+                                update_macro_values()
                         except: pass
                 
-                base_f = st.session_state.get('base_food', {'k':0,'p':0,'c':0,'f':0})
                 c1, c2 = st.columns([2,1])
                 nom = c1.text_input("Nome Alimento", key="f_nm")
-                gr = c2.number_input("Quantità (g)", step=10.0, key="f_gr")
                 
-                fac = gr / 100
-                k_t = base_f['k']*fac; p_t = base_f['p']*fac
-                c_t = base_f['c']*fac; f_t = base_f['f']*fac
+                # AGGIUNTO: on_change=update_macro_values
+                # Questo attiva il ricalcolo immediato quando cambi il numero e premi Invio o clicchi fuori
+                gr = c2.number_input("Quantità (g)", step=10.0, key="f_gr", on_change=update_macro_values)
                 
                 st.markdown("###### 📊 Valori Nutrizionali")
                 m1,m2,m3,m4 = st.columns(4)
-                k=m1.number_input("Kcal", value=float(k_t), key="fk"); p=m2.number_input("Pro", value=float(p_t), key="fp")
-                c=m3.number_input("Carb", value=float(c_t), key="fc"); f=m4.number_input("Fat", value=float(f_t), key="ff")
+                
+                # I campi qui sotto ora leggono direttamente dallo stato aggiornato dalla callback
+                k=m1.number_input("Kcal", key="fk")
+                p=m2.number_input("Pro", key="fp")
+                c=m3.number_input("Carb", key="fc")
+                f=m4.number_input("Fat", key="ff")
+                
                 st.write("")
                 if st.button("🍽️ Aggiungi al Diario", type="primary", use_container_width=True, key="bf"):
                     if nom: 
                         add_riga_diario("pasto",{"pasto":cat,"nome":nom,"gr":gr,"unita":"g","cal":k,"pro":p,"carb":c,"fat":f}, data_filtro)
                         st.success("Pasto aggiunto!")
+                        # Pulizia campi
                         clear_form_state(["f_nm", "f_gr", "fk", "fp", "fc", "ff"])
                         st.rerun()
 
     with c_db:
         st.subheader("💾 Gestione DB")
+        # Logica Gestione DB invariata per brevità (puoi mantenere quella che hai già)
+        # ... (Il resto del codice della colonna destra rimane uguale al tuo file originale) ...
+        # RICORDA DI NON CANCELLARE LA PARTE DI DESTRA SE NON VUOI REINCOLLARLA.
+        # Per sicurezza, reincollo la logica DB qui sotto per completezza del blocco TAB 2.
+        
         df_ex_gestione = get_data("esercizi") 
         if df_ex_gestione.empty: df_ex_gestione = pd.DataFrame(columns=["nome", "categoria"])
 
