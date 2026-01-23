@@ -540,13 +540,17 @@ with tab1:
                     if 'esercizi' in w and w['esercizi']:
                         for ex in w['esercizi']:
                             t = ex.get('type', 'pesi')
-                            # --- LOGICA VISUALIZZAZIONE AGGIORNATA ---
+                            # --- LOGICA VISUALIZZAZIONE AGGIORNATA V14.6 ---
                             if t == "pesi": 
                                 det = f"**{ex['kg']}kg** x {ex['serie']}x{ex['reps']}"
                             elif t == "isometria": 
-                                det = f"⏱️ **{ex['tempo']}s** x {ex['serie']}"
+                                # Mostra zavorra solo se > 0
+                                zav = f" +**{ex.get('kg',0)}kg**" if ex.get('kg',0) > 0 else ""
+                                det = f"⏱️ {ex['tempo']}s{zav} x {ex['serie']}"
                             elif t == "abs": 
-                                det = f"🔥 {ex['serie']}x{ex['reps']}"
+                                # Mostra zavorra solo se > 0
+                                zav = f" +**{ex.get('kg',0)}kg**" if ex.get('kg',0) > 0 else ""
+                                det = f"🔥 {ex['serie']}x{ex['reps']}{zav}"
                             elif t == "calisthenics": 
                                 det = f"bw+{ex.get('kg',0)}kg x {ex['serie']}x{ex['reps']}"
                             else: # Cardio
@@ -681,7 +685,7 @@ with tab2:
                         save_data("esercizi", pd.concat([df_ex_gestione, new_rows], ignore_index=True))
                         st.rerun()
 
-# --- TAB 3: WORKOUT (AGGIORNATO CON ISOMETRIA E ABS) ---
+# --- TAB 3: WORKOUT (AGGIORNATO CON ZAVORRA PER ISO E ABS) ---
 with tab3:
     st.subheader("Workout")
     df_ex = get_data("esercizi")
@@ -700,7 +704,6 @@ with tab3:
     with c1:
         st.caption("Setup Sessione")
         ses = st.text_input("Nome Sessione", "Workout", key="w_ses")
-        # UPDATED: Aggiunte nuove modalità
         mod = st.radio("Modo", ["Pesi", "Calisthenics", "Isometria", "Abs", "Cardio"], horizontal=True, key="w_mod")
         
         # --- MODO PESI ---
@@ -728,33 +731,36 @@ with tab3:
             if st.button("Aggiungi Set", key="w_cali_b"): 
                 st.session_state['sess_w'].append({"type":"calisthenics","nome":nm,"serie":s,"reps":r,"kg":w})
 
-        # --- MODO ISOMETRIA (NEW) ---
+        # --- MODO ISOMETRIA (UPDATED: CON ZAVORRA) ---
         elif mod == "Isometria":
             sl = st.selectbox("Esercizio", ["-- Nuovo --"] + ls_iso, key="w_iso_sl")
             nm = st.text_input("Nome", key="w_iso_nm") if sl == "-- Nuovo --" else sl
             
-            c_i1, c_i2 = st.columns(2)
+            c_i1, c_i2, c_i3 = st.columns(3)
             s = c_i1.number_input("Set", 1, key="wis")
-            t = c_i2.number_input("Tempo (sec)", 10, step=5, key="wit")
+            t = c_i2.number_input("Sec", 10, step=5, key="wit")
+            z = c_i3.number_input("Kg", 0.0, step=0.5, key="wiz") # Zavorra
             
             if st.button("Aggiungi Iso", key="w_iso_b"): 
-                st.session_state['sess_w'].append({"type":"isometria","nome":nm,"serie":s,"tempo":t})
+                st.session_state['sess_w'].append({"type":"isometria","nome":nm,"serie":s,"tempo":t,"kg":z})
             
             with st.expander("Salva nel DB"):
                 if st.button("Salva Iso", key="wds_iso"): 
                     save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":nm, "categoria":"Isometria"}])], ignore_index=True))
                     st.rerun()
 
-        # --- MODO ABS (NEW) ---
+        # --- MODO ABS (UPDATED: CON ZAVORRA) ---
         elif mod == "Abs":
             sl = st.selectbox("Esercizio", ["-- Nuovo --"] + ls_abs, key="w_abs_sl")
             nm = st.text_input("Nome", key="w_abs_nm") if sl == "-- Nuovo --" else sl
             
-            s = st.number_input("Set", 3, key="was")
-            r = st.number_input("Reps", 15, step=5, key="war")
+            c_a1, c_a2, c_a3 = st.columns(3)
+            s = c_a1.number_input("Set", 3, key="was")
+            r = c_a2.number_input("Reps", 15, step=5, key="war")
+            z = c_a3.number_input("Kg", 0.0, step=1.0, key="waz") # Zavorra
             
             if st.button("Aggiungi Abs", key="w_abs_b"): 
-                st.session_state['sess_w'].append({"type":"abs","nome":nm,"serie":s,"reps":r})
+                st.session_state['sess_w'].append({"type":"abs","nome":nm,"serie":s,"reps":r,"kg":z})
             
             with st.expander("Salva nel DB"):
                 if st.button("Salva Abs", key="wds_abs"): 
@@ -772,16 +778,19 @@ with tab3:
         st.subheader(f"In Corso: {ses}")
         if st.session_state['sess_w']:
             for i,e in enumerate(st.session_state['sess_w']):
-                # --- LOGICA DISPLAY IN SESSIONE ---
+                # --- LOGICA DISPLAY SESSIONE AGGIORNATA ---
                 typ = e.get('type', 'pesi')
+                kg_val = e.get('kg', 0)
+                zavorra_str = f" +{kg_val}kg" if kg_val > 0 else ""
+
                 if typ == 'cardio': 
                     det = f"{e.get('km')}km in {e.get('tempo')}min"
                 elif typ == 'isometria':
-                    det = f"{e.get('serie')} set x {e.get('tempo')} sec"
+                    det = f"{e.get('serie')} set x {e.get('tempo')}s{zavorra_str}"
                 elif typ == 'abs':
-                    det = f"{e.get('serie')} set x {e.get('reps')} reps"
-                else:
-                    det = f"{e.get('serie',0)}x{e.get('reps',0)} @ {e.get('kg',0)}kg"
+                    det = f"{e.get('serie')} set x {e.get('reps')} reps{zavorra_str}"
+                else: # Pesi e Calisthenics
+                    det = f"{e.get('serie',0)}x{e.get('reps',0)} @ {kg_val}kg"
                 
                 c_txt, c_del = st.columns([5,1])
                 c_txt.markdown(f"**{e['nome']}** : {det}")
