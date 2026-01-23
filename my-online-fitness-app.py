@@ -527,6 +527,7 @@ with tab1:
                             delete_riga(p['idx']); st.rerun()
         if not found_meals: st.info("Nessun pasto registrato oggi.")
 
+    # --- TAB 1 ---
     with cl2:
         st.subheader("🏋️ Allenamento")
         if allenamenti:
@@ -539,10 +540,18 @@ with tab1:
                     if 'esercizi' in w and w['esercizi']:
                         for ex in w['esercizi']:
                             t = ex.get('type', 'pesi')
-                            if t == "pesi": det = f"**{ex['kg']}kg** x {ex['serie']}x{ex['reps']}"
-                            elif t == "isometria": det = f"**{ex['tempo']}s** x {ex['serie']}"
-                            elif t == "calisthenics": det = f"bw+{ex.get('kg',0)}kg x {ex['serie']}x{ex['reps']}"
-                            else: det = f"{ex['km']}km"
+                            # --- LOGICA VISUALIZZAZIONE AGGIORNATA ---
+                            if t == "pesi": 
+                                det = f"**{ex['kg']}kg** x {ex['serie']}x{ex['reps']}"
+                            elif t == "isometria": 
+                                det = f"⏱️ **{ex['tempo']}s** x {ex['serie']}"
+                            elif t == "abs": 
+                                det = f"🔥 {ex['serie']}x{ex['reps']}"
+                            elif t == "calisthenics": 
+                                det = f"bw+{ex.get('kg',0)}kg x {ex['serie']}x{ex['reps']}"
+                            else: # Cardio
+                                det = f"{ex['km']}km"
+                            
                             st.markdown(f"• {ex['nome']} ({det})")
         else: st.info("Riposo o nessun dato.")
 
@@ -672,15 +681,18 @@ with tab2:
                         save_data("esercizi", pd.concat([df_ex_gestione, new_rows], ignore_index=True))
                         st.rerun()
 
-# --- TAB 3: WORKOUT ---
+# --- TAB 3: WORKOUT (AGGIORNATO CON ISOMETRIA E ABS) ---
 with tab3:
     st.subheader("Workout")
     df_ex = get_data("esercizi")
     if df_ex.empty: df_ex = pd.DataFrame(columns=["nome", "categoria"])
     elif "categoria" not in df_ex.columns: df_ex["categoria"] = "Pesi"
     
+    # 1. Caricamento Liste per Categoria
     ls_pesi = sorted(df_ex[df_ex['categoria'] == 'Pesi']['nome'].unique().tolist())
     ls_cali = sorted(df_ex[df_ex['categoria'] == 'Calisthenics']['nome'].unique().tolist())
+    ls_iso  = sorted(df_ex[df_ex['categoria'] == 'Isometria']['nome'].unique().tolist())
+    ls_abs  = sorted(df_ex[df_ex['categoria'] == 'Abs']['nome'].unique().tolist())
     
     if 'sess_w' not in st.session_state: st.session_state['sess_w'] = []
     
@@ -688,10 +700,11 @@ with tab3:
     with c1:
         st.caption("Setup Sessione")
         ses = st.text_input("Nome Sessione", "Workout", key="w_ses")
-        mod = st.radio("Modo", ["Pesi", "Calisthenics", "Cardio"], horizontal=True, key="w_mod")
+        # UPDATED: Aggiunte nuove modalità
+        mod = st.radio("Modo", ["Pesi", "Calisthenics", "Isometria", "Abs", "Cardio"], horizontal=True, key="w_mod")
         
+        # --- MODO PESI ---
         if mod == "Pesi":
-            # Callback per pulire inputs
             def clear_w_in(): 
                 if 'ws' in st.session_state: st.session_state.ws = 1
                 if 'ww' in st.session_state: st.session_state.ww = 0.0
@@ -707,6 +720,7 @@ with tab3:
                     save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":nm, "categoria":"Pesi"}])], ignore_index=True))
                     st.rerun()
 
+        # --- MODO CALISTHENICS ---
         elif mod == "Calisthenics":
             sl = st.selectbox("Esercizio", ["-- Nuovo --"] + ls_cali, key="w_cali_sl")
             nm = st.text_input("Nome", key="w_cali_nm") if sl == "-- Nuovo --" else sl
@@ -714,7 +728,41 @@ with tab3:
             if st.button("Aggiungi Set", key="w_cali_b"): 
                 st.session_state['sess_w'].append({"type":"calisthenics","nome":nm,"serie":s,"reps":r,"kg":w})
 
-        else: # Cardio
+        # --- MODO ISOMETRIA (NEW) ---
+        elif mod == "Isometria":
+            sl = st.selectbox("Esercizio", ["-- Nuovo --"] + ls_iso, key="w_iso_sl")
+            nm = st.text_input("Nome", key="w_iso_nm") if sl == "-- Nuovo --" else sl
+            
+            c_i1, c_i2 = st.columns(2)
+            s = c_i1.number_input("Set", 1, key="wis")
+            t = c_i2.number_input("Tempo (sec)", 10, step=5, key="wit")
+            
+            if st.button("Aggiungi Iso", key="w_iso_b"): 
+                st.session_state['sess_w'].append({"type":"isometria","nome":nm,"serie":s,"tempo":t})
+            
+            with st.expander("Salva nel DB"):
+                if st.button("Salva Iso", key="wds_iso"): 
+                    save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":nm, "categoria":"Isometria"}])], ignore_index=True))
+                    st.rerun()
+
+        # --- MODO ABS (NEW) ---
+        elif mod == "Abs":
+            sl = st.selectbox("Esercizio", ["-- Nuovo --"] + ls_abs, key="w_abs_sl")
+            nm = st.text_input("Nome", key="w_abs_nm") if sl == "-- Nuovo --" else sl
+            
+            s = st.number_input("Set", 3, key="was")
+            r = st.number_input("Reps", 15, step=5, key="war")
+            
+            if st.button("Aggiungi Abs", key="w_abs_b"): 
+                st.session_state['sess_w'].append({"type":"abs","nome":nm,"serie":s,"reps":r})
+            
+            with st.expander("Salva nel DB"):
+                if st.button("Salva Abs", key="wds_abs"): 
+                    save_data("esercizi", pd.concat([df_ex, pd.DataFrame([{"nome":nm, "categoria":"Abs"}])], ignore_index=True))
+                    st.rerun()
+
+        # --- MODO CARDIO ---
+        else: 
             nm = st.text_input("Nome", "Corsa", key="ca_nm")
             km=st.number_input("Km",0.0,key="ck"); mi=st.number_input("Min",0,key="cm"); kc=st.number_input("Kcal",0,key="cc")
             if st.button("Aggiungi Cardio", key="cb"): 
@@ -724,7 +772,17 @@ with tab3:
         st.subheader(f"In Corso: {ses}")
         if st.session_state['sess_w']:
             for i,e in enumerate(st.session_state['sess_w']):
-                det = f"{e.get('serie',0)}x{e.get('reps',0)} @ {e.get('kg',0)}kg" if e.get('type') != 'cardio' else f"{e.get('km')}km in {e.get('tempo')}min"
+                # --- LOGICA DISPLAY IN SESSIONE ---
+                typ = e.get('type', 'pesi')
+                if typ == 'cardio': 
+                    det = f"{e.get('km')}km in {e.get('tempo')}min"
+                elif typ == 'isometria':
+                    det = f"{e.get('serie')} set x {e.get('tempo')} sec"
+                elif typ == 'abs':
+                    det = f"{e.get('serie')} set x {e.get('reps')} reps"
+                else:
+                    det = f"{e.get('serie',0)}x{e.get('reps',0)} @ {e.get('kg',0)}kg"
+                
                 c_txt, c_del = st.columns([5,1])
                 c_txt.markdown(f"**{e['nome']}** : {det}")
                 if c_del.button("❌", key=f"del_w_sess_{i}"): 
