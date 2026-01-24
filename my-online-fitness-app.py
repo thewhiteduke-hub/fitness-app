@@ -277,7 +277,7 @@ df = get_data("diario")
 user_settings = get_user_settings()
 
 # --- 1. SEZIONE FOTO PROFILO (SOLO FOTO) ---
-    if url_avatar:
+if url_avatar:
         # Foto Grande Verticale Pulita
         st.markdown(f"""
         <div style="display:flex; justify-content:center; margin-bottom: 15px;">
