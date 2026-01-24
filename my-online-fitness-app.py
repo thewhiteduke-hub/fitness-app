@@ -220,8 +220,11 @@ def get_user_settings():
             except: pass
     return settings
 
-def calculate_user_level(df):
-    if df.empty: return 1, 0, 0.0, 100
+# === GAMIFICATION ENGINE V2 (LEVEL + STREAK) ===
+def calculate_user_status(df):
+    if df.empty: return 1, 0, 0.0, 100, 0
+    
+    # XP Calc
     xp = 0
     xp += len(df[df['tipo'] == 'pasto']) * 5
     xp += len(df[df['tipo'] == 'allenamento']) * 20
@@ -230,9 +233,39 @@ def calculate_user_level(df):
     
     level = 1 + (xp // 500)
     current_xp = xp % 500
-    next_level_xp = 500
-    progress = current_xp / next_level_xp
-    return level, xp, progress, int(current_xp)
+    progress = current_xp / 500
+    
+    # Streak Calc
+    streak = 0
+    try:
+        unique_dates = sorted(pd.to_datetime(df['data']).dt.date.unique(), reverse=True)
+        today = datetime.date.today()
+        
+        if unique_dates:
+            # Se l'ultimo inserimento è oggi o ieri, la streak è attiva
+            if unique_dates[0] == today:
+                streak = 1
+                check_idx = 1
+            elif unique_dates[0] == today - datetime.timedelta(days=1):
+                streak = 1
+                check_idx = 1 # Inizia a controllare da ieri in giù
+            else:
+                streak = 0
+                check_idx = 0
+                
+            # Conta all'indietro
+            if streak > 0 and len(unique_dates) > 1:
+                current_check = unique_dates[0] 
+                for prev_date in unique_dates[1:]:
+                    if prev_date == current_check - datetime.timedelta(days=1):
+                        streak += 1
+                        current_check = prev_date
+                    else:
+                        break
+    except:
+        streak = 0
+
+    return level, xp, progress, int(current_xp), streak
 
 def clear_form_state(keys_to_clear):
     for k in keys_to_clear:
@@ -247,7 +280,7 @@ user_settings = get_user_settings()
 # 📱 SIDEBAR PRO
 # ==========================================
 with st.sidebar:
-    lvl, tot_xp, prog, curr_xp = calculate_user_level(df)
+    lvl, tot_xp, prog, curr_xp, streak_count = calculate_user_status(df)
     url_avatar = user_settings.get('url_foto', '').strip()
     
     col_av, col_info = st.columns([1, 2])
@@ -261,7 +294,10 @@ with st.sidebar:
         st.caption("Elite Athlete")
     
     st.progress(prog)
-    st.caption(f"🚀 XP: {curr_xp} / 500")
+    c_xp, c_fire = st.columns([2,1])
+    c_xp.caption(f"🚀 XP: {curr_xp} / 500")
+    if streak_count > 0:
+        c_fire.markdown(f"🔥 **{streak_count}** gg")
 
     st.markdown("---")
     st.markdown("**📅 Calendario**")
