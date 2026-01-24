@@ -277,27 +277,86 @@ df = get_data("diario")
 user_settings = get_user_settings()
 
 # ==========================================
-# 📱 SIDEBAR PRO
+# 📱 SIDEBAR PRO (v15.1 GOLDEN EDITION)
 # ==========================================
 with st.sidebar:
     lvl, tot_xp, prog, curr_xp, streak_count = calculate_user_status(df)
     url_avatar = user_settings.get('url_foto', '').strip()
     
-    col_av, col_info = st.columns([1, 2])
-    with col_av:
-        if url_avatar:
-            st.markdown(f'<img src="{url_avatar}" style="width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid #0051FF;">', unsafe_allow_html=True)
-        else:
-            st.markdown("# 👤")
+    # --- 1. SEZIONE TARGET PHYSIQUE (NUOVA GRAFICA) ---
+    if url_avatar:
+        # A. Visualizzazione Card "Target Physique"
+        st.markdown(f"""
+        <div style="display:flex; flex-direction:column; align-items:center; margin-bottom: 20px;">
+            <div style="
+                width: 180px; 
+                height: 250px; 
+                background-image: url('{url_avatar}'); 
+                background-size: cover; 
+                background-position: center top; 
+                border-radius: 12px; 
+                border: 2px solid #E5E7EB;
+                box-shadow: 0 10px 25px -5px rgba(0, 81, 255, 0.15);
+                transition: transform 0.3s ease;
+            "></div>
+            
+            <div style="
+                margin-top: -16px; 
+                z-index: 10;
+                background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+                padding: 2px;
+                border-radius: 6px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            ">
+                <div style="
+                    background: #1F2937; 
+                    color: #FFD700; 
+                    padding: 4px 16px; 
+                    border-radius: 4px; 
+                    font-size: 10px; 
+                    font-weight: 800; 
+                    text-transform: uppercase; 
+                    letter-spacing: 2px;
+                    text-align: center;
+                ">
+                    Target Physique
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # B. Tasto Full Screen (Logica Modale)
+        if st.button("🔍 Ingrandisci a schermo intero", use_container_width=True):
+            @st.dialog("Target Physique", width="large")
+            def show_full_image():
+                st.image(url_avatar, use_container_width=True)
+            show_full_image()
+            
+    else:
+        # Placeholder se non c'è foto
+        st.markdown("""
+        <div style="text-align:center; padding: 20px; border: 2px dashed #E5E7EB; border-radius: 12px; color: #9CA3AF;">
+            <div style="font-size: 40px; margin-bottom: 10px;">👤</div>
+            <div style="font-size: 12px; font-weight: 600;">Nessun Target Impostato</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # --- 2. STATISTICHE LIVELLO (Sotto la foto) ---
+    st.write("") # Spaziatore
+    
+    col_lvl, col_info = st.columns([1, 2])
+    with col_lvl:
+        st.markdown(f"<h1 style='margin:0; text-align:center; color:#0051FF; font-size:36px;'>{lvl}</h1>", unsafe_allow_html=True)
     with col_info:
-        st.markdown(f"**Livello {lvl}**")
-        st.caption("Elite Athlete")
+        st.markdown("**Livello Atleta**")
+        st.caption("Elite Performance")
     
     st.progress(prog)
+    
     c_xp, c_fire = st.columns([2,1])
     c_xp.caption(f"🚀 XP: {curr_xp} / 500")
     if streak_count > 0:
-        c_fire.markdown(f"🔥 **{streak_count}** gg")
+        c_fire.markdown(f"🔥 **{streak_count}**")
 
     st.markdown("---")
     st.markdown("**📅 Calendario**")
