@@ -283,11 +283,11 @@ with st.sidebar:
     lvl, tot_xp, prog, curr_xp, streak_count = calculate_user_status(df)
     url_avatar = user_settings.get('url_foto', '').strip()
     
-    # --- 1. SEZIONE TARGET PHYSIQUE (NUOVA GRAFICA) ---
+    # --- 1. SEZIONE TARGET PHYSIQUE (CORRETTA) ---
     if url_avatar:
-        # A. Visualizzazione Card "Target Physique"
         st.markdown(f"""
         <div style="display:flex; flex-direction:column; align-items:center; margin-bottom: 20px;">
+            
             <div style="
                 width: 180px; 
                 height: 250px; 
@@ -297,16 +297,18 @@ with st.sidebar:
                 border-radius: 12px; 
                 border: 2px solid #E5E7EB;
                 box-shadow: 0 10px 25px -5px rgba(0, 81, 255, 0.15);
-                transition: transform 0.3s ease;
+                position: relative; 
+                z-index: 1;
             "></div>
             
             <div style="
                 margin-top: -16px; 
                 z-index: 10;
+                position: relative; /* QUESTA PROPRIETÀ MANCAVA */
                 background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
                 padding: 2px;
                 border-radius: 6px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                box-shadow: 0 4px 6px rgba(0,0,0,0.25);
             ">
                 <div style="
                     background: #1F2937; 
@@ -325,7 +327,7 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
         
-        # B. Tasto Full Screen (Logica Modale)
+        # Tasto Full Screen
         if st.button("🔍 Ingrandisci a schermo intero", use_container_width=True):
             @st.dialog("Target Physique", width="large")
             def show_full_image():
