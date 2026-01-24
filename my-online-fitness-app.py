@@ -276,18 +276,11 @@ def clear_form_state(keys_to_clear):
 df = get_data("diario")
 user_settings = get_user_settings()
 
-# ==========================================
-# 📱 SIDEBAR PRO (v15.1 GOLDEN EDITION)
-# ==========================================
-with st.sidebar:
-    lvl, tot_xp, prog, curr_xp, streak_count = calculate_user_status(df)
-    url_avatar = user_settings.get('url_foto', '').strip()
-    
-    # --- 1. SEZIONE TARGET PHYSIQUE (CORRETTA) ---
+# --- 1. SEZIONE FOTO PROFILO (SOLO FOTO) ---
     if url_avatar:
+        # Foto Grande Verticale Pulita
         st.markdown(f"""
-        <div style="display:flex; flex-direction:column; align-items:center; margin-bottom: 20px;">
-            
+        <div style="display:flex; justify-content:center; margin-bottom: 15px;">
             <div style="
                 width: 180px; 
                 height: 250px; 
@@ -296,39 +289,13 @@ with st.sidebar:
                 background-position: center top; 
                 border-radius: 12px; 
                 border: 2px solid #E5E7EB;
-                box-shadow: 0 10px 25px -5px rgba(0, 81, 255, 0.15);
-                position: relative; 
-                z-index: 1;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             "></div>
-            
-            <div style="
-                margin-top: -16px; 
-                z-index: 10;
-                position: relative; /* QUESTA PROPRIETÀ MANCAVA */
-                background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
-                padding: 2px;
-                border-radius: 6px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.25);
-            ">
-                <div style="
-                    background: #1F2937; 
-                    color: #FFD700; 
-                    padding: 4px 16px; 
-                    border-radius: 4px; 
-                    font-size: 10px; 
-                    font-weight: 800; 
-                    text-transform: uppercase; 
-                    letter-spacing: 2px;
-                    text-align: center;
-                ">
-                    Target Physique
-                </div>
-            </div>
         </div>
         """, unsafe_allow_html=True)
         
         # Tasto Full Screen
-        if st.button("🔍 Ingrandisci a schermo intero", use_container_width=True):
+        if st.button("🔍 Ingrandisci", use_container_width=True):
             @st.dialog("Target Physique", width="large")
             def show_full_image():
                 st.image(url_avatar, use_container_width=True)
@@ -337,9 +304,9 @@ with st.sidebar:
     else:
         # Placeholder se non c'è foto
         st.markdown("""
-        <div style="text-align:center; padding: 20px; border: 2px dashed #E5E7EB; border-radius: 12px; color: #9CA3AF;">
+        <div style="text-align:center; padding: 20px; border: 2px dashed #E5E7EB; border-radius: 12px; color: #9CA3AF; margin-bottom: 15px;">
             <div style="font-size: 40px; margin-bottom: 10px;">👤</div>
-            <div style="font-size: 12px; font-weight: 600;">Nessun Target Impostato</div>
+            <div style="font-size: 12px; font-weight: 600;">Nessuna Foto</div>
         </div>
         """, unsafe_allow_html=True)
 
