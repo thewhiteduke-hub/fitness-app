@@ -147,62 +147,57 @@ try:
 except: pass
 
 # ==========================================
-# 🚀 DATABASE ENGINE
+# 🚀 DATABASE ENGINE (REFACTORING V14.6)
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 @st.cache_data(ttl=600)
 def fetch_data_cached(sheet_name):
-    try: return conn.read(worksheet=sheet_name)
-    except: return pd.DataFrame()
+    try: 
+        return conn.read(worksheet=sheet_name)
+    except Exception as e:
+        return pd.DataFrame()
 
 def get_data(sheet): return fetch_data_cached(sheet)
 
 def save_data(sheet, df):
-    df = df.fillna("") 
-    conn.update(worksheet=sheet, data=df)
-    fetch_data_cached.clear()
-    st.cache_data.clear()
+    try:
+        # 1. Sanificazione: trasforma tutto in stringa e pulisce i NaN
+        # Questo evita l'APIError perché Google Sheets riceve dati puliti
+        df = df.fillna("").astype(str) 
+        
+        # 2. Aggiornamento fisico su GSheets
+        conn.update(worksheet=sheet, data=df)
+        
+        # 3. Reset totale della cache per vedere i dati subito
+        fetch_data_cached.clear()
+        st.cache_data.clear()
+    except Exception as e:
+        st.error(f"Errore di sincronizzazione GSheets: {e}")
 
-def add_riga_diario(tipo, dati):
+# [FIX] Aggiunto parametro data_custom per supportare il calendario
+def add_riga_diario(tipo, dati, data_custom=None):
     df = get_data("diario")
-    if df.empty: df = pd.DataFrame(columns=["data", "tipo", "dettaglio_json"])
-    data_oggi = datetime.datetime.now().strftime("%Y-%m-%d")
-    nuova = pd.DataFrame([{"data": data_oggi, "tipo": tipo, "dettaglio_json": json.dumps(dati)}])
+    if df.empty: 
+        df = pd.DataFrame(columns=["data", "tipo", "dettaglio_json"])
+    
+    # Se passi una data dalla sidebar, usa quella, altrimenti usa oggi
+    target_date = data_custom if data_custom else datetime.datetime.now().strftime("%Y-%m-%d")
+    
+    nuova = pd.DataFrame([{
+        "data": str(target_date), 
+        "tipo": str(tipo), 
+        "dettaglio_json": json.dumps(dati)
+    }])
+    
     df_totale = pd.concat([df, nuova], ignore_index=True)
     save_data("diario", df_totale)
 
 def delete_riga(idx):
     df = get_data("diario")
-    save_data("diario", df.drop(idx))
-
-def get_user_settings():
-    df = get_data("diario")
-    settings = {"url_foto": "", "target_cal": 2500, "target_pro": 180, "target_carb": 300, "target_fat": 80}
-    if not df.empty:
-        rows = df[df['tipo'] == 'settings']
-        if not rows.empty:
-            try: settings.update(json.loads(rows.iloc[-1]['dettaglio_json']))
-            except: pass
-    return settings
-
-def calculate_user_level(df):
-    if df.empty: return 1, 0, 0.0, 100
-    # XP Rules: 5xp pasto, 20xp workout, 10xp peso
-    xp = 0
-    # Conta occorrenze basate sul tipo
-    xp += len(df[df['tipo'] == 'pasto']) * 5
-    xp += len(df[df['tipo'] == 'allenamento']) * 20
-    xp += len(df[df['tipo'] == 'misure']) * 10
-    
-    # Livello: 1 livello ogni 500 XP
-    level = 1 + (xp // 500)
-    current_xp = xp % 500
-    next_level_xp = 500
-    progress = current_xp / next_level_xp
-    return level, xp, progress, int(current_xp)
-
-df = get_data("diario")
+    if idx in df.index:
+        save_data("diario", df.drop(idx))
+        st.rerun()
 # ==========================================
 # 📱 SIDEBAR
 # ==========================================
