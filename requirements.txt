@@ -1,3 +1,6 @@
 streamlit
+streamlit-gsheets
+pandas
+altair
 google-generativeai
 st-gsheets-connection
