@@ -198,41 +198,60 @@ def delete_riga(idx):
     if idx in df.index:
         save_data("diario", df.drop(idx))
         st.rerun()
+# ==========================================
+# 🛠️ HELPER FUNCTIONS (RECOVERY V14.7)
+# ==========================================
+
 def safe_parse_json(json_str):
-    """Evita crash se il JSON nel database è corrotto"""
+    """Evita crash se il JSON nel database è corrotto o nullo"""
     try:
         if pd.isna(json_str) or json_str == "": return {}
+        # Se è già un dizionario (capita con alcune versioni di pandas/gsheets), lo restituisce
+        if isinstance(json_str, dict): return json_str
         return json.loads(json_str)
     except: return {}
 
 def get_user_settings():
-    df = get_data("diario")
+    """Recupera i target calorici e l'avatar dell'utente"""
+    df_settings = get_data("diario")
     settings = {"url_foto": "", "target_cal": 2500, "target_pro": 180, "target_carb": 300, "target_fat": 80}
-    if not df.empty:
-        rows = df[df['tipo'] == 'settings']
+    if not df_settings.empty:
+        # Filtra solo le righe di tipo settings e prende l'ultima inserita
+        rows = df_settings[df_settings['tipo'] == 'settings']
         if not rows.empty:
-            try: settings.update(safe_parse_json(rows.iloc[-1]['dettaglio_json']))
+            try: 
+                dati_salvati = safe_parse_json(rows.iloc[-1]['dettaglio_json'])
+                settings.update(dati_salvati)
             except: pass
     return settings
 
-def calculate_user_level(df):
-    if df.empty: return 1, 0, 0.0, 100
+def calculate_user_level(df_level):
+    """Calcola il livello basato sugli XP accumulati"""
+    if df_level.empty: return 1, 0, 0.0, 0
     xp = 0
     # Regole XP: Pasti (5), Allenamenti (20), Misure (10), Acqua (2)
-    xp += len(df[df['tipo'] == 'pasto']) * 5
-    xp += len(df[df['tipo'] == 'allenamento']) * 20
-    xp += len(df[df['tipo'] == 'misure']) * 10
-    xp += len(df[df['tipo'] == 'acqua']) * 2
+    xp += len(df_level[df_level['tipo'] == 'pasto']) * 5
+    xp += len(df_level[df_level['tipo'] == 'allenamento']) * 20
+    xp += len(df_level[df_level['tipo'] == 'misure']) * 10
+    xp += len(df_level[df_level['tipo'] == 'acqua']) * 2
     
     level = 1 + (xp // 500)
     current_xp = xp % 500
-    progress = current_xp / 500
+    progress = float(current_xp) / 500.0
     return level, xp, progress, int(current_xp)
 
 def clear_form_state(keys_to_clear):
+    """Pulisce i campi dei form dopo l'inserimento"""
     for k in keys_to_clear:
         if k in st.session_state:
             del st.session_state[k]
+
+# ==========================================
+# 🚀 INITIALIZATION
+# ==========================================
+# Questa è la riga che prima dava errore perché mancavano le definizioni sopra
+df = get_data("diario")
+user_settings = get_user_settings()
 def get_user_settings():
     df = get_data("diario")
     # Impostazioni di default
