@@ -198,6 +198,21 @@ def delete_riga(idx):
     if idx in df.index:
         save_data("diario", df.drop(idx))
         st.rerun()
+# Incolla questo blocco SUBITO SOTTO la funzione delete_riga(idx)
+def get_user_settings():
+    df = get_data("diario")
+    # Impostazioni di default
+    settings = {"url_foto": "", "target_cal": 2500, "target_pro": 180, "target_carb": 300, "target_fat": 80}
+    if not df.empty:
+        rows = df[df['tipo'] == 'settings']
+        if not rows.empty:
+            try:
+                # Recupera l'ultimo salvataggio delle impostazioni
+                import json
+                settings.update(json.loads(rows.iloc[-1]['dettaglio_json']))
+            except: pass
+    return settings
+
 # ==========================================
 # 📱 SIDEBAR
 # ==========================================
