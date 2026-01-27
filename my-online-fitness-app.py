@@ -198,7 +198,41 @@ def delete_riga(idx):
     if idx in df.index:
         save_data("diario", df.drop(idx))
         st.rerun()
-# Incolla questo blocco SUBITO SOTTO la funzione delete_riga(idx)
+def safe_parse_json(json_str):
+    """Evita crash se il JSON nel database è corrotto"""
+    try:
+        if pd.isna(json_str) or json_str == "": return {}
+        return json.loads(json_str)
+    except: return {}
+
+def get_user_settings():
+    df = get_data("diario")
+    settings = {"url_foto": "", "target_cal": 2500, "target_pro": 180, "target_carb": 300, "target_fat": 80}
+    if not df.empty:
+        rows = df[df['tipo'] == 'settings']
+        if not rows.empty:
+            try: settings.update(safe_parse_json(rows.iloc[-1]['dettaglio_json']))
+            except: pass
+    return settings
+
+def calculate_user_level(df):
+    if df.empty: return 1, 0, 0.0, 100
+    xp = 0
+    # Regole XP: Pasti (5), Allenamenti (20), Misure (10), Acqua (2)
+    xp += len(df[df['tipo'] == 'pasto']) * 5
+    xp += len(df[df['tipo'] == 'allenamento']) * 20
+    xp += len(df[df['tipo'] == 'misure']) * 10
+    xp += len(df[df['tipo'] == 'acqua']) * 2
+    
+    level = 1 + (xp // 500)
+    current_xp = xp % 500
+    progress = current_xp / 500
+    return level, xp, progress, int(current_xp)
+
+def clear_form_state(keys_to_clear):
+    for k in keys_to_clear:
+        if k in st.session_state:
+            del st.session_state[k]
 def get_user_settings():
     df = get_data("diario")
     # Impostazioni di default
