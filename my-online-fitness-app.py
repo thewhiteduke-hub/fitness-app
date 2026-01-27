@@ -752,11 +752,27 @@ with tab3:
         else: 
             st.info("Aggiungi il primo esercizio.")
 
-# --- TAB 4: STORICO (FIXED) ---
+# --- TAB 4: STORICO (CORRETTO) ---
 with tab4:
-    if misure_list: st.table(pd.DataFrame(misure_list))
-    else: st.info("Nessuna misurazione.")
-    with st.expander("Misure Complete"):
+    st.subheader("📜 Log Completo Attività")
+    
+    if not df.empty:
+        # Mostra il database grezzo filtrato per le colonne leggibili
+        display_df = df.copy()
+        # Opzionale: formattazione per rendere il JSON leggibile
+        st.dataframe(display_df.sort_values(by="data", ascending=False), use_container_width=True)
+    else:
+        st.info("Il database è vuoto.")
+
+    st.divider()
+    st.subheader("📉 Storico Peso")
+    if misure_list: 
+        st.table(pd.DataFrame(misure_list).sort_values(by="Data", ascending=False))
+    else: 
+        st.info("Nessuna misurazione del peso trovata.")
+    
+    with st.expander("Aggiungi Misura Completa"):
+        # ... (il tuo codice per il form rimane uguale)
         c1,c2 = st.columns(2)
         p=c1.number_input("Peso", key="ms_p"); a=c2.number_input("Altezza", key="ms_a")
         c3,c4,c5 = st.columns(3)
